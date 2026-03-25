@@ -1,5 +1,7 @@
-import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { Toaster } from "@/components/ui/sonner";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 function FloralCorner({ className = "" }: { className?: string }) {
   return (
@@ -129,42 +131,82 @@ const letters = [
   },
 ];
 
-const memories = [
+type GalleryItem = {
+  id: number;
+  label: string;
+  photoUrl: string;
+  bg: string;
+};
+
+const BG_COLORS = [
+  "#f9c5cb",
+  "#fde68a",
+  "#fbc2cb",
+  "#fed7aa",
+  "#fce7f3",
+  "#d1fae5",
+  "#e0e7ff",
+  "#fef3c7",
+];
+
+const DEFAULT_GALLERY: GalleryItem[] = [
   {
     id: 1,
     label: "First Date",
+    photoUrl:
+      "/assets/uploads/img_5703-019d26f7-da96-73ca-8164-6863235eb7cd-1.jpeg",
     bg: "#f9c5cb",
-    photo:
-      "/assets/uploads/img_5707-019d26f7-daea-70a8-9a5f-f155f1811d08-2.jpeg",
   },
   {
     id: 2,
     label: "Summer Trip",
+    photoUrl:
+      "/assets/uploads/img_5707-019d26f7-daea-70a8-9a5f-f155f1811d08-2.jpeg",
     bg: "#fde68a",
-    photo:
-      "/assets/uploads/img_5703-019d26f7-da96-73ca-8164-6863235eb7cd-1.jpeg",
   },
   {
     id: 3,
     label: "Your Birthday",
-    bg: "#fbc2cb",
-    photo:
+    photoUrl:
       "/assets/uploads/img_5706-019d26f7-dc29-77a1-a860-f70e37a8aac6-3.jpeg",
+    bg: "#fbc2cb",
   },
   {
     id: 4,
     label: "Our Adventure",
-    bg: "#fed7aa",
-    photo:
+    photoUrl:
       "/assets/uploads/img_5705-019d26f7-dbf0-76cd-833f-0824d6e6e093-4.jpeg",
+    bg: "#fed7aa",
   },
   {
     id: 5,
     label: "Just Us",
+    photoUrl:
+      "/assets/uploads/image-019d26fe-1c46-708c-a0d7-dc9b5ac06982-1.jpeg",
     bg: "#fce7f3",
-    photo: "/assets/uploads/image-019d26fe-1c46-708c-a0d7-dc9b5ac06982-1.jpeg",
   },
 ];
+
+const STORAGE_KEY = "drithi_gallery";
+
+function loadGallery(): GalleryItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as GalleryItem[];
+  } catch {
+    // ignore
+  }
+  return DEFAULT_GALLERY;
+}
+
+function saveGallery(items: GalleryItem[]): boolean {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function useInView(ref: React.RefObject<Element | null>) {
   const [inView, setInView] = useState(false);
@@ -204,6 +246,15 @@ function FadeSection({
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [letterOpen, setLetterOpen] = useState<number | null>(null);
+  const [gallery, setGallery] = useState<GalleryItem[]>(loadGallery);
+  const [editMode, setEditMode] = useState(false);
+  const [editingLabelId, setEditingLabelId] = useState<number | null>(null);
+  const [labelDraft, setLabelDraft] = useState("");
+  const titleClickCount = useRef(0);
+  const titleClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addFileRef = useRef<HTMLInputElement>(null);
+  const replaceFileRef = useRef<HTMLInputElement>(null);
+  const replaceTargetId = useRef<number | null>(null);
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -228,11 +279,127 @@ export default function App() {
 
   const activeLetter = letters.find((l) => l.id === letterOpen) ?? null;
 
+  const updateGallery = useCallback((items: GalleryItem[]) => {
+    setGallery(items);
+    if (!saveGallery(items)) {
+      alert("Photo too large, try a smaller image.");
+    }
+  }, []);
+
+  const handleTitleClick = () => {
+    titleClickCount.current += 1;
+    if (titleClickTimer.current) clearTimeout(titleClickTimer.current);
+    titleClickTimer.current = setTimeout(() => {
+      titleClickCount.current = 0;
+    }, 600);
+    if (titleClickCount.current >= 3) {
+      titleClickCount.current = 0;
+      if (titleClickTimer.current) clearTimeout(titleClickTimer.current);
+      setEditMode((prev) => {
+        const next = !prev;
+        toast(
+          next
+            ? "✏️ Edit mode on — triple-click title to exit"
+            : "✅ Edit mode off",
+          {
+            style: {
+              background: "#FAF6EE",
+              color: "#9C6A64",
+              border: "1px solid #D8C9B3",
+            },
+          },
+        );
+        return next;
+      });
+    }
+  };
+
+  const removeMemory = (id: number) => {
+    updateGallery(gallery.filter((g) => g.id !== id));
+  };
+
+  const startReplacePhoto = (id: number) => {
+    replaceTargetId.current = id;
+    replaceFileRef.current?.click();
+  };
+
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleReplaceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || replaceTargetId.current === null) return;
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      updateGallery(
+        gallery.map((g) =>
+          g.id === replaceTargetId.current ? { ...g, photoUrl: dataUrl } : g,
+        ),
+      );
+    } catch {
+      alert("Could not read file.");
+    }
+    e.target.value = "";
+    replaceTargetId.current = null;
+  };
+
+  const handleAddFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const label =
+      window.prompt("Enter a label for this memory:", "Our Moment") ??
+      "Our Moment";
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const newId = Math.max(0, ...gallery.map((g) => g.id)) + 1;
+      const bg = BG_COLORS[gallery.length % BG_COLORS.length];
+      updateGallery([...gallery, { id: newId, label, photoUrl: dataUrl, bg }]);
+    } catch {
+      alert("Could not read file.");
+    }
+    e.target.value = "";
+  };
+
+  const startEditLabel = (item: GalleryItem) => {
+    setEditingLabelId(item.id);
+    setLabelDraft(item.label);
+  };
+
+  const saveLabel = (id: number) => {
+    updateGallery(
+      gallery.map((g) => (g.id === id ? { ...g, label: labelDraft } : g)),
+    );
+    setEditingLabelId(null);
+  };
+
   return (
     <div
       className="min-h-screen"
       style={{ backgroundColor: "#F3ECDC", color: "#2A2420" }}
     >
+      <Toaster />
+
+      {/* Hidden file inputs */}
+      <input
+        ref={replaceFileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleReplaceFile}
+      />
+      <input
+        ref={addFileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAddFile}
+      />
+
       {/* ===== NAV ===== */}
       <header
         className="sticky top-0 z-50 w-full"
@@ -560,7 +727,7 @@ export default function App() {
         style={{ backgroundColor: "#EEE4D0" }}
       >
         <div className="max-w-7xl mx-auto">
-          <FadeSection className="text-center mb-14">
+          <FadeSection className="text-center mb-6">
             <p
               className="font-script text-2xl mb-1"
               style={{ color: "#B07A73" }}
@@ -568,8 +735,13 @@ export default function App() {
               our story in pictures
             </p>
             <h2
-              className="font-display text-4xl md:text-5xl font-bold"
+              className="font-display text-4xl md:text-5xl font-bold cursor-pointer select-none"
               style={{ color: "#2A2420" }}
+              onClick={handleTitleClick}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") handleTitleClick();
+              }}
+              title="Triple-click to toggle edit mode"
             >
               Drithi's Memory Gallery
             </h2>
@@ -579,17 +751,36 @@ export default function App() {
             />
           </FadeSection>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {memories.map((mem, i) => (
+          <AnimatePresence>
+            {editMode && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="text-center mb-8"
+              >
+                <span
+                  className="inline-block px-4 py-2 rounded-full text-sm font-semibold"
+                  style={{ backgroundColor: "#fbc2cb", color: "#9C6A64" }}
+                  data-ocid="memories.edit_mode.panel"
+                >
+                  ✏️ Edit mode — triple-click title to exit
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+            {gallery.map((mem, i) => (
               <FadeSection key={mem.id} delay={i * 0.08}>
                 <div
-                  data-ocid={`memories.item.${mem.id}`}
+                  data-ocid={`memories.item.${i + 1}`}
                   className="relative rounded-2xl overflow-hidden group cursor-pointer"
                   style={{ paddingBottom: "130%" }}
                 >
-                  {mem.photo ? (
+                  {mem.photoUrl ? (
                     <img
-                      src={mem.photo}
+                      src={mem.photoUrl}
                       alt={mem.label}
                       className="absolute inset-0 w-full h-full object-cover"
                     />
@@ -610,20 +801,123 @@ export default function App() {
                     className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                     style={{ backgroundColor: "rgba(176,122,115,0.15)" }}
                   />
-                  <div className="absolute bottom-3 left-0 right-0 flex justify-center">
-                    <span
-                      className="px-3 py-1 rounded-full text-xs font-semibold"
-                      style={{
-                        backgroundColor: "rgba(243,236,220,0.92)",
-                        color: "#9C6A64",
-                      }}
-                    >
-                      {mem.label}
-                    </span>
+
+                  {/* Edit mode controls */}
+                  {editMode && (
+                    <>
+                      {/* Remove button */}
+                      <button
+                        type="button"
+                        data-ocid={`memories.delete_button.${i + 1}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeMemory(mem.id);
+                        }}
+                        className="absolute top-2 right-2 z-20 w-7 h-7 flex items-center justify-center rounded-full text-white font-bold text-sm shadow transition-transform hover:scale-110"
+                        style={{ backgroundColor: "rgba(200,50,50,0.85)" }}
+                        aria-label="Remove photo"
+                      >
+                        ×
+                      </button>
+                      {/* Replace photo button */}
+                      <button
+                        type="button"
+                        data-ocid={`memories.edit_button.${i + 1}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startReplacePhoto(mem.id);
+                        }}
+                        className="absolute top-2 left-2 z-20 w-7 h-7 flex items-center justify-center rounded-full text-white text-sm shadow transition-transform hover:scale-110"
+                        style={{ backgroundColor: "rgba(176,122,115,0.85)" }}
+                        aria-label="Replace photo"
+                      >
+                        📷
+                      </button>
+                    </>
+                  )}
+
+                  <div className="absolute bottom-3 left-0 right-0 flex justify-center z-10">
+                    {editMode && editingLabelId === mem.id ? (
+                      <input
+                        type="text"
+                        value={labelDraft}
+                        data-ocid={"memories.input"}
+                        className="px-2 py-0.5 rounded-full text-xs font-semibold text-center outline-none"
+                        style={{
+                          backgroundColor: "rgba(243,236,220,0.96)",
+                          color: "#9C6A64",
+                          border: "1px solid #B07A73",
+                          maxWidth: "90%",
+                        }}
+                        onChange={(e) => setLabelDraft(e.target.value)}
+                        onBlur={() => saveLabel(mem.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveLabel(mem.id);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span
+                        role={editMode ? "button" : undefined}
+                        tabIndex={editMode ? 0 : undefined}
+                        className="px-3 py-1 rounded-full text-xs font-semibold"
+                        style={{
+                          backgroundColor: "rgba(243,236,220,0.92)",
+                          color: "#9C6A64",
+                          cursor: editMode ? "text" : "default",
+                        }}
+                        onClick={(e) => {
+                          if (editMode) {
+                            e.stopPropagation();
+                            startEditLabel(mem);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (
+                            editMode &&
+                            (e.key === "Enter" || e.key === " ")
+                          ) {
+                            e.stopPropagation();
+                            startEditLabel(mem);
+                          }
+                        }}
+                      >
+                        {mem.label}
+                      </span>
+                    )}
                   </div>
                 </div>
               </FadeSection>
             ))}
+
+            {/* Add Memory card — only in edit mode */}
+            {editMode && (
+              <FadeSection delay={gallery.length * 0.08}>
+                <button
+                  type="button"
+                  data-ocid="memories.upload_button"
+                  onClick={() => addFileRef.current?.click()}
+                  className="relative rounded-2xl w-full flex flex-col items-center justify-center gap-2 transition-all hover:opacity-80 active:scale-95 border-2 border-dashed"
+                  style={{
+                    paddingBottom: "130%",
+                    borderColor: "#B07A73",
+                    backgroundColor: "rgba(176,122,115,0.07)",
+                  }}
+                >
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                    <span className="text-3xl" style={{ color: "#B07A73" }}>
+                      +
+                    </span>
+                    <span
+                      className="text-xs font-semibold"
+                      style={{ color: "#B07A73" }}
+                    >
+                      Add Memory
+                    </span>
+                  </div>
+                </button>
+              </FadeSection>
+            )}
           </div>
         </div>
       </section>
@@ -746,15 +1040,6 @@ export default function App() {
             style={{ color: "#8A7A72" }}
           >
             Made with ♥ for Drithi
-            <br />
-            <a
-              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:underline"
-            >
-              Built with love using caffeine.ai
-            </a>
           </p>
         </div>
       </footer>
