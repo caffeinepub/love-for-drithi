@@ -8,6 +8,23 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const _CaffeineStorageCreateCertificateResult = IDL.Record({
+  'method' : IDL.Text,
+  'blob_hash' : IDL.Text,
+});
+export const _CaffeineStorageRefillInformation = IDL.Record({
+  'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+});
+export const _CaffeineStorageRefillResult = IDL.Record({
+  'success' : IDL.Opt(IDL.Bool),
+  'topped_up_amount' : IDL.Opt(IDL.Nat),
+});
+export const ExternalBlob = IDL.Vec(IDL.Nat8);
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
+});
 export const Time = IDL.Int;
 export const LoveMessage = IDL.Record({
   'title' : IDL.Text,
@@ -18,18 +35,87 @@ export const MemoryItem = IDL.Record({
   'name' : IDL.Text,
   'description' : IDL.Text,
 });
+export const UserProfile = IDL.Record({ 'name' : IDL.Text });
+export const MusicTrack = IDL.Record({
+  'title' : IDL.Text,
+  'audioFile' : ExternalBlob,
+  'timestamp' : Time,
+});
+export const Photo = IDL.Record({
+  'title' : IDL.Text,
+  'galleryImage' : ExternalBlob,
+  'timestamp' : Time,
+});
 
 export const idlService = IDL.Service({
+  '_caffeineStorageBlobIsLive' : IDL.Func(
+      [IDL.Vec(IDL.Nat8)],
+      [IDL.Bool],
+      ['query'],
+    ),
+  '_caffeineStorageBlobsToDelete' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      ['query'],
+    ),
+  '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      [],
+      [],
+    ),
+  '_caffeineStorageCreateCertificate' : IDL.Func(
+      [IDL.Text],
+      [_CaffeineStorageCreateCertificateResult],
+      [],
+    ),
+  '_caffeineStorageRefillCashier' : IDL.Func(
+      [IDL.Opt(_CaffeineStorageRefillInformation)],
+      [_CaffeineStorageRefillResult],
+      [],
+    ),
+  '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addLoveMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'addMemory' : IDL.Func([IDL.Text, IDL.Text], [], []),
+  'addMusicTrack' : IDL.Func([IDL.Text, ExternalBlob], [], []),
+  'addPhoto' : IDL.Func([IDL.Text, ExternalBlob], [], []),
+  'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'getAllLoveMessages' : IDL.Func([], [IDL.Vec(LoveMessage)], ['query']),
   'getAllMemories' : IDL.Func([], [IDL.Vec(MemoryItem)], ['query']),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getLoveMessage' : IDL.Func([IDL.Text], [LoveMessage], ['query']),
+  'getMusicTrack' : IDL.Func([IDL.Text], [IDL.Opt(MusicTrack)], ['query']),
+  'getPhoto' : IDL.Func([IDL.Text], [IDL.Opt(Photo)], ['query']),
+  'getUserProfile' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Opt(UserProfile)],
+      ['query'],
+    ),
+  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const _CaffeineStorageCreateCertificateResult = IDL.Record({
+    'method' : IDL.Text,
+    'blob_hash' : IDL.Text,
+  });
+  const _CaffeineStorageRefillInformation = IDL.Record({
+    'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+  });
+  const _CaffeineStorageRefillResult = IDL.Record({
+    'success' : IDL.Opt(IDL.Bool),
+    'topped_up_amount' : IDL.Opt(IDL.Nat),
+  });
+  const ExternalBlob = IDL.Vec(IDL.Nat8);
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
+  });
   const Time = IDL.Int;
   const LoveMessage = IDL.Record({
     'title' : IDL.Text,
@@ -40,13 +126,65 @@ export const idlFactory = ({ IDL }) => {
     'name' : IDL.Text,
     'description' : IDL.Text,
   });
+  const UserProfile = IDL.Record({ 'name' : IDL.Text });
+  const MusicTrack = IDL.Record({
+    'title' : IDL.Text,
+    'audioFile' : ExternalBlob,
+    'timestamp' : Time,
+  });
+  const Photo = IDL.Record({
+    'title' : IDL.Text,
+    'galleryImage' : ExternalBlob,
+    'timestamp' : Time,
+  });
   
   return IDL.Service({
+    '_caffeineStorageBlobIsLive' : IDL.Func(
+        [IDL.Vec(IDL.Nat8)],
+        [IDL.Bool],
+        ['query'],
+      ),
+    '_caffeineStorageBlobsToDelete' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
+    '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        [],
+        [],
+      ),
+    '_caffeineStorageCreateCertificate' : IDL.Func(
+        [IDL.Text],
+        [_CaffeineStorageCreateCertificateResult],
+        [],
+      ),
+    '_caffeineStorageRefillCashier' : IDL.Func(
+        [IDL.Opt(_CaffeineStorageRefillInformation)],
+        [_CaffeineStorageRefillResult],
+        [],
+      ),
+    '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addLoveMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'addMemory' : IDL.Func([IDL.Text, IDL.Text], [], []),
+    'addMusicTrack' : IDL.Func([IDL.Text, ExternalBlob], [], []),
+    'addPhoto' : IDL.Func([IDL.Text, ExternalBlob], [], []),
+    'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'getAllLoveMessages' : IDL.Func([], [IDL.Vec(LoveMessage)], ['query']),
     'getAllMemories' : IDL.Func([], [IDL.Vec(MemoryItem)], ['query']),
+    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getLoveMessage' : IDL.Func([IDL.Text], [LoveMessage], ['query']),
+    'getMusicTrack' : IDL.Func([IDL.Text], [IDL.Opt(MusicTrack)], ['query']),
+    'getPhoto' : IDL.Func([IDL.Text], [IDL.Opt(Photo)], ['query']),
+    'getUserProfile' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
+    'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   });
 };
 

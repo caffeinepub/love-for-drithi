@@ -1,7 +1,12 @@
+import { Slider } from "@/components/ui/slider";
 import { Toaster } from "@/components/ui/sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ExternalBlob } from "./backend";
+import { useActor } from "./hooks/useActor";
 
 function FloralCorner({ className = "" }: { className?: string }) {
   return (
@@ -42,7 +47,10 @@ function FloralCorner({ className = "" }: { className?: string }) {
 function RoseIllustration({
   className = "",
   flip = false,
-}: { className?: string; flip?: boolean }) {
+}: {
+  className?: string;
+  flip?: boolean;
+}) {
   return (
     <svg
       role="img"
@@ -91,52 +99,165 @@ function RoseIllustration({
   );
 }
 
-const hearts = Array.from({ length: 16 }, (_, i) => ({
+const FLOWER_HEART_EMOJIS = [
+  "🌸",
+  "🌺",
+  "🌹",
+  "🌷",
+  "❤️",
+  "💕",
+  "💗",
+  "💖",
+  "💓",
+  "🌼",
+];
+const HEART_EMOJIS = new Set(["❤️", "💕", "💗", "💖", "💓"]);
+
+const PARTICLES = Array.from({ length: 40 }, (_, i) => ({
   id: i,
-  left: `${5 + ((i * 6) % 90)}%`,
-  size: 16 + (i % 4) * 8,
-  duration: 6 + (i % 5) * 2,
-  delay: (i * 0.7) % 8,
-  emoji: i % 3 === 0 ? "🌸" : i % 3 === 1 ? "💕" : "✿",
+  emoji: FLOWER_HEART_EMOJIS[i % FLOWER_HEART_EMOJIS.length],
+  left: Math.round((i * 2.5 + (i % 7) * 3.1) % 100),
+  size: 14 + Math.round((i * 1.7 + (i % 5) * 4.8) % 24),
+  duration: 5 + Math.round((i * 0.9 + (i % 6) * 1.5) % 9),
+  delay: Math.round((i * 0.8 + (i % 9) * 0.7) % 100) / 10,
+  sway: 20 + Math.round((i * 1.3 + (i % 4) * 7) % 40),
+  isHeart: HEART_EMOJIS.has(
+    FLOWER_HEART_EMOJIS[i % FLOWER_HEART_EMOJIS.length],
+  ),
 }));
 
-const letters = [
-  {
-    id: 1,
-    date: "March 2023",
-    title: "The Day I Knew You",
-    excerpt:
-      "From the moment I saw you, I knew you were the one I'd been searching for. The world seemed to pause, and all I could see was you...",
-  },
-  {
-    id: 2,
-    date: "December 28th, 2024",
-    title: "The Day I Told I Love You",
-    excerpt:
-      "I love you because you make every moment worth living. Your laugh, your smile, the way your eyes light up when you're excited...",
-  },
-  {
-    id: 3,
-    date: "December 31st, 2024",
-    title: "A Promise to You",
-    excerpt:
-      "I promise to be by your side through every joy and every storm. Through laughter and tears, in sunrise and in dusk...",
-  },
-  {
-    id: 4,
-    date: "December 31st, 2024",
-    title: "Forever and Always",
-    excerpt:
-      "No matter where life takes us, my love for you will never waver. You are my home, my peace, my greatest adventure...",
-  },
-];
-
-type GalleryItem = {
+interface BurstParticle {
   id: number;
-  label: string;
-  photoUrl: string;
-  bg: string;
-};
+  x: number;
+  y: number;
+  angle: number;
+  distance: number;
+  emoji: string;
+}
+
+function PremiumParticles() {
+  const [burstParticles, setBurstParticles] = useState<BurstParticle[]>([]);
+  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const burstIdRef = useRef(0);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setMousePos({
+      x: (e.clientX - rect.left) / rect.width,
+      y: (e.clientY - rect.top) / rect.height,
+    });
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const newBursts: BurstParticle[] = Array.from({ length: 10 }, (_, i) => ({
+      id: burstIdRef.current++,
+      x: cx,
+      y: cy,
+      angle: (i / 10) * Math.PI * 2 + Math.random() * 0.5,
+      distance: 60 + Math.random() * 60,
+      emoji:
+        FLOWER_HEART_EMOJIS[
+          Math.floor(Math.random() * FLOWER_HEART_EMOJIS.length)
+        ],
+    }));
+    setBurstParticles((prev) => [...prev, ...newBursts]);
+    setTimeout(() => {
+      setBurstParticles((prev) =>
+        prev.filter((p) => !newBursts.some((b) => b.id === p.id)),
+      );
+    }, 900);
+  };
+
+  const parallaxX = (mousePos.x - 0.5) * 30;
+  const parallaxY = (mousePos.y - 0.5) * 15;
+
+  return (
+    <div
+      ref={containerRef}
+      className="absolute inset-0 overflow-hidden pointer-events-auto"
+      onMouseMove={handleMouseMove}
+      onClick={handleClick}
+      onKeyDown={() => {}}
+      role="presentation"
+      style={{ zIndex: 2 }}
+    >
+      {PARTICLES.map((p) => (
+        <motion.span
+          key={p.id}
+          className="absolute select-none pointer-events-none"
+          style={{
+            left: `${p.left}%`,
+            bottom: "-5%",
+            fontSize: `${p.size}px`,
+            filter: p.isHeart
+              ? "drop-shadow(0 0 6px rgba(231,163,168,0.8))"
+              : undefined,
+            x: parallaxX * (0.3 + (p.id % 5) * 0.15),
+            y: parallaxY * (0.2 + (p.id % 4) * 0.1),
+          }}
+          animate={{
+            y: [
+              0,
+              -(typeof window !== "undefined" ? window.innerHeight : 800) - 100,
+            ],
+            x: [
+              parallaxX * (0.3 + (p.id % 5) * 0.15),
+              p.sway + parallaxX,
+              parallaxX * (0.3 + (p.id % 5) * 0.15),
+              -p.sway + parallaxX,
+              parallaxX * (0.3 + (p.id % 5) * 0.15),
+            ],
+            opacity: [0, 0.9, 0.9, 0],
+            scale: p.isHeart ? [1, 1.15, 1, 1.15, 1] : 1,
+          }}
+          transition={{
+            duration: p.duration,
+            delay: p.delay,
+            repeat: Number.POSITIVE_INFINITY,
+            ease: "easeInOut",
+          }}
+        >
+          {p.emoji}
+        </motion.span>
+      ))}
+
+      <AnimatePresence>
+        {burstParticles.map((bp) => (
+          <motion.span
+            key={bp.id}
+            className="absolute select-none pointer-events-none"
+            style={{
+              left: bp.x,
+              top: bp.y,
+              fontSize: "20px",
+              translateX: "-50%",
+              translateY: "-50%",
+            }}
+            initial={{ x: 0, y: 0, opacity: 1, scale: 0.5 }}
+            animate={{
+              x: Math.cos(bp.angle) * bp.distance,
+              y: Math.sin(bp.angle) * bp.distance,
+              opacity: 0,
+              scale: 1.2,
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          >
+            {bp.emoji}
+          </motion.span>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+type GalleryItem = { id: number; label: string; photoUrl: string; bg: string };
 
 const BG_COLORS = [
   "#f9c5cb",
@@ -187,11 +308,13 @@ const DEFAULT_GALLERY: GalleryItem[] = [
   },
 ];
 
-const STORAGE_KEY = "drithi_gallery";
+const GALLERY_KEY = "drithi_gallery";
+const CONTENT_KEY = "drithi_content";
+const MUSIC_KEY = "drithi_music";
 
 function loadGallery(): GalleryItem[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(GALLERY_KEY);
     if (raw) return JSON.parse(raw) as GalleryItem[];
   } catch {
     // ignore
@@ -199,13 +322,95 @@ function loadGallery(): GalleryItem[] {
   return DEFAULT_GALLERY;
 }
 
-function saveGallery(items: GalleryItem[]): boolean {
+function saveGallery(items: GalleryItem[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    return true;
+    localStorage.setItem(GALLERY_KEY, JSON.stringify(items));
   } catch {
-    return false;
+    // ignore
   }
+}
+
+type LetterContent = {
+  title: string;
+  date: string;
+  excerpt: string;
+  body: string;
+};
+
+type AppContent = {
+  heroSubtitle: string;
+  letters: LetterContent[];
+  storyHowItBegan: string;
+  storyPara1: string;
+  storyPara2: string;
+  storyClosing: string;
+  quoteText: string;
+  quoteAttribution: string;
+  gallerySubheading: string;
+  lettersSubheading: string;
+};
+
+const DEFAULT_CONTENT: AppContent = {
+  heroSubtitle:
+    "Every day with you is a blessing.\nThis is my love letter to you, Drithi.",
+  letters: [
+    {
+      title: "The Day I Knew You",
+      date: "March 2023",
+      excerpt:
+        "From the moment I saw you, I knew you were the one I'd been searching for. The world seemed to pause, and all I could see was you...",
+      body: "From the moment I saw you, I knew you were the one I'd been searching for. The world seemed to pause, and all I could see was you. With every sunrise, I am reminded of how lucky I am to have you in my life, Drithi. You are my sunshine, my moonlight, and every star in between. My love for you grows deeper with every passing day, and I would choose you again and again, in every lifetime, in every world.",
+    },
+    {
+      title: "The Day I Told I Love You",
+      date: "December 28th, 2024",
+      excerpt:
+        "I love you because you make every moment worth living. Your laugh, your smile, the way your eyes light up when you're excited...",
+      body: "I love you because you make every moment worth living. Your laugh, your smile, the way your eyes light up when you're excited — all of it fills my heart with a joy I never knew was possible. That day I told you I love you was the truest thing I've ever said. With every sunrise, I am reminded of how lucky I am to have you in my life, Drithi. You are my sunshine, my moonlight, and every star in between.",
+    },
+    {
+      title: "A Promise to You",
+      date: "December 31st, 2024",
+      excerpt:
+        "I promise to be by your side through every joy and every storm. Through laughter and tears, in sunrise and in dusk...",
+      body: "I promise to be by your side through every joy and every storm. Through laughter and tears, in sunrise and in dusk. I promise to hold your hand when the world feels heavy, and to dance with you when the music plays. My love for you grows deeper with every passing day, and I would choose you again and again, in every lifetime, in every world.",
+    },
+    {
+      title: "Forever and Always",
+      date: "December 31st, 2024",
+      excerpt:
+        "No matter where life takes us, my love for you will never waver. You are my home, my peace, my greatest adventure...",
+      body: "No matter where life takes us, my love for you will never waver. You are my home, my peace, my greatest adventure. Every moment with you is a gift I cherish endlessly. With every sunrise, I am reminded of how lucky I am to have you in my life, Drithi. You are my sunshine, my moonlight, and every star in between. My love for you grows deeper with every passing day.",
+    },
+  ],
+  storyHowItBegan: "how it began",
+  storyPara1:
+    "It started with a glance — and somehow, the entire universe conspired for us to meet. Every step I took before I knew you was leading me to you, Drithi. You walked into my life and everything changed: the colors became brighter, the music became sweeter, and every ordinary moment became extraordinary.",
+  storyPara2:
+    "I cherish every laugh we share, every quiet moment, every adventure and every ordinary Tuesday. You are my favorite person in the world, and I am grateful for every single day with you.",
+  storyClosing: "— With all my love ♥",
+  quoteText:
+    "In all the world, there is no heart for me like yours. In all the world, there is no love for you like mine.",
+  quoteAttribution: "— Maya Angelou",
+  gallerySubheading: "our story in pictures",
+  lettersSubheading: "with all my heart",
+};
+
+function loadContent(): AppContent {
+  try {
+    const raw = localStorage.getItem(CONTENT_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as Partial<AppContent>;
+      return {
+        ...DEFAULT_CONTENT,
+        ...saved,
+        letters: saved.letters ?? DEFAULT_CONTENT.letters,
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return DEFAULT_CONTENT;
 }
 
 function useInView(ref: React.RefObject<Element | null>) {
@@ -227,7 +432,11 @@ function FadeSection({
   children,
   className = "",
   delay = 0,
-}: { children: React.ReactNode; className?: string; delay?: number }) {
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref as React.RefObject<Element>);
   return (
@@ -243,6 +452,716 @@ function FadeSection({
   );
 }
 
+// ===== MUSIC PLAYER =====
+function MusicPlayer() {
+  const [expanded, setExpanded] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(0.7);
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const musicFileRef = useRef<HTMLInputElement>(null);
+  const { actor } = useActor();
+
+  useEffect(() => {
+    const saved = localStorage.getItem(MUSIC_KEY);
+    if (saved) setAudioSrc(saved);
+  }, []);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume;
+  }, [volume]);
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.play().catch(() => setIsPlaying(false));
+    } else {
+      audioRef.current.pause();
+    }
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (audioSrc && audioRef.current) {
+      audioRef.current.src = audioSrc;
+      audioRef.current.load();
+    }
+  }, [audioSrc]);
+
+  const fileToUint8Array = (file: File): Promise<Uint8Array> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () =>
+        resolve(new Uint8Array(reader.result as ArrayBuffer));
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+
+  const handleMusicFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (actor) {
+      try {
+        toast("Uploading music to cloud...");
+        const bytes = await fileToUint8Array(file);
+        const blob = ExternalBlob.fromBytes(bytes as Uint8Array<ArrayBuffer>);
+        await actor.addMusicTrack("background-music", blob);
+        const track = await actor.getMusicTrack("background-music");
+        if (track) {
+          const url = track.audioFile.getDirectURL();
+          setAudioSrc(url);
+          try {
+            localStorage.setItem(MUSIC_KEY, url);
+          } catch {
+            /* ignore */
+          }
+          setIsPlaying(true);
+          toast("✅ Music saved to cloud!");
+        }
+      } catch {
+        toast("Failed to upload music");
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setAudioSrc(dataUrl);
+        try {
+          localStorage.setItem(MUSIC_KEY, dataUrl);
+        } catch {
+          /* ignore */
+        }
+        setIsPlaying(true);
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = "";
+  };
+
+  const togglePlay = () => {
+    if (!audioSrc) {
+      musicFileRef.current?.click();
+      return;
+    }
+    setIsPlaying((p) => !p);
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
+      {/* biome-ignore lint/a11y/useMediaCaption: background music player has no speech content */}
+      <audio ref={audioRef} loop />
+      <input
+        ref={musicFileRef}
+        type="file"
+        accept="audio/mp3,audio/mpeg"
+        className="hidden"
+        onChange={handleMusicFile}
+      />
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="rounded-2xl p-4 flex flex-col gap-3 w-56 shadow-lg"
+            style={{ backgroundColor: "#FAF6EE", border: "1px solid #D8C9B3" }}
+            data-ocid="music.panel"
+          >
+            <p className="text-xs font-semibold" style={{ color: "#9C6A64" }}>
+              🎵 Background Music
+            </p>
+
+            <button
+              type="button"
+              data-ocid="music.upload_button"
+              onClick={() => musicFileRef.current?.click()}
+              className="w-full px-3 py-1.5 rounded-full text-xs font-semibold transition-all hover:opacity-80 active:scale-95"
+              style={{ backgroundColor: "#E7A3A8", color: "#FAF6EE" }}
+            >
+              📂 Upload MP3
+            </button>
+
+            <button
+              type="button"
+              data-ocid="music.toggle"
+              onClick={togglePlay}
+              className="w-full px-3 py-1.5 rounded-full text-xs font-semibold transition-all hover:opacity-80 active:scale-95"
+              style={{
+                backgroundColor: isPlaying ? "#B07A73" : "#D8C9B3",
+                color: isPlaying ? "#FAF6EE" : "#4A3830",
+              }}
+            >
+              {isPlaying ? "⏸ Pause" : "▶ Play"}
+            </button>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-xs" style={{ color: "#8A7A72" }}>
+                Volume
+              </p>
+              <Slider
+                min={0}
+                max={1}
+                step={0.01}
+                value={[volume]}
+                onValueChange={([v]) => setVolume(v ?? 0.7)}
+                className="w-full"
+              />
+            </div>
+
+            {!audioSrc && (
+              <p className="text-xs italic" style={{ color: "#B07A73" }}>
+                Upload an MP3 to play music 🎶
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <button
+        type="button"
+        data-ocid="music.button"
+        onClick={() => setExpanded((p) => !p)}
+        className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg text-xl transition-all hover:scale-105 active:scale-95"
+        style={{
+          backgroundColor: isPlaying ? "#B07A73" : "#FAF6EE",
+          border: "2px solid #D8C9B3",
+          color: isPlaying ? "#FAF6EE" : "#B07A73",
+        }}
+        aria-label="Music player"
+      >
+        🎵
+      </button>
+    </div>
+  );
+}
+
+// ===== EDIT PANEL =====
+function EditPanel({
+  content,
+  onSave,
+  onClose,
+}: {
+  content: AppContent;
+  onSave: (c: AppContent) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<AppContent>(() =>
+    JSON.parse(JSON.stringify(content)),
+  );
+
+  const setField = <K extends keyof AppContent>(
+    key: K,
+    value: AppContent[K],
+  ) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const setLetterField = (
+    index: number,
+    field: keyof LetterContent,
+    value: string,
+  ) => {
+    setDraft((prev) => {
+      const letters = prev.letters.map((l, i) =>
+        i === index ? { ...l, [field]: value } : l,
+      );
+      return { ...prev, letters };
+    });
+  };
+
+  const handleSave = () => {
+    onSave(draft);
+    toast("✅ Changes saved!", {
+      style: {
+        background: "#FAF6EE",
+        color: "#9C6A64",
+        border: "1px solid #D8C9B3",
+      },
+    });
+    onClose();
+  };
+
+  const labelStyle = { color: "#4A3830" } as const;
+  const inputStyle = {
+    border: "1px solid #D8C9B3",
+    backgroundColor: "#FFF9F3",
+  } as const;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-end"
+      data-ocid="edit.modal"
+    >
+      {/* Backdrop */}
+      <button
+        type="button"
+        aria-label="Close editor"
+        className="absolute inset-0 w-full h-full cursor-default"
+        style={{ backgroundColor: "rgba(42,36,32,0.5)", border: "none" }}
+        onClick={onClose}
+      />
+
+      {/* Drawer panel */}
+      <motion.div
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="relative h-full w-full max-w-xl flex flex-col overflow-hidden shadow-2xl"
+        style={{ backgroundColor: "#FAF6EE" }}
+        data-ocid="edit.panel"
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-6 py-4 shrink-0"
+          style={{ borderBottom: "1px solid #D8C9B3" }}
+        >
+          <h2
+            className="font-display text-xl font-bold"
+            style={{ color: "#2A2420" }}
+          >
+            ✏️ Edit App Content
+          </h2>
+          <button
+            type="button"
+            data-ocid="edit.close_button"
+            onClick={onClose}
+            className="text-2xl leading-none"
+            style={{ color: "#9C6A64" }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <Tabs defaultValue="hero">
+            <TabsList
+              className="w-full mb-4 flex flex-wrap gap-1 h-auto"
+              style={{ backgroundColor: "#EEE4D0" }}
+            >
+              <TabsTrigger value="hero" data-ocid="edit.hero.tab">
+                Hero
+              </TabsTrigger>
+              <TabsTrigger value="letters" data-ocid="edit.letters.tab">
+                Letters
+              </TabsTrigger>
+              <TabsTrigger value="story" data-ocid="edit.story.tab">
+                Story
+              </TabsTrigger>
+              <TabsTrigger value="quote" data-ocid="edit.quote.tab">
+                Quote
+              </TabsTrigger>
+              <TabsTrigger value="headings" data-ocid="edit.headings.tab">
+                Headings
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Hero Tab */}
+            <TabsContent value="hero" className="flex flex-col gap-4">
+              <div>
+                <p
+                  className="block text-sm font-semibold mb-1"
+                  style={labelStyle}
+                >
+                  Subtitle Text
+                </p>
+                <Textarea
+                  value={draft.heroSubtitle}
+                  onChange={(e) => setField("heroSubtitle", e.target.value)}
+                  rows={3}
+                  data-ocid="edit.hero.textarea"
+                  className="w-full rounded-lg text-sm"
+                  style={{ borderColor: "#D8C9B3", backgroundColor: "#FFF9F3" }}
+                />
+              </div>
+            </TabsContent>
+
+            {/* Letters Tab */}
+            <TabsContent value="letters" className="flex flex-col gap-6">
+              {draft.letters.map((letter, i) => (
+                <div
+                  // biome-ignore lint/suspicious/noArrayIndexKey: edit panel letter list
+                  key={i}
+                  className="flex flex-col gap-3 p-4 rounded-xl"
+                  style={{
+                    border: "1px solid #D8C9B3",
+                    backgroundColor: "#FFF9F3",
+                  }}
+                >
+                  <p
+                    className="text-xs font-bold uppercase tracking-wide"
+                    style={{ color: "#B07A73" }}
+                  >
+                    Letter {i + 1}
+                  </p>
+                  <div>
+                    <p
+                      className="block text-sm font-semibold mb-1"
+                      style={labelStyle}
+                    >
+                      Title
+                    </p>
+                    <input
+                      type="text"
+                      value={letter.title}
+                      onChange={(e) =>
+                        setLetterField(i, "title", e.target.value)
+                      }
+                      data-ocid={`edit.letter${i + 1}.input`}
+                      className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <p
+                      className="block text-sm font-semibold mb-1"
+                      style={labelStyle}
+                    >
+                      Date
+                    </p>
+                    <input
+                      type="text"
+                      value={letter.date}
+                      onChange={(e) =>
+                        setLetterField(i, "date", e.target.value)
+                      }
+                      data-ocid={`edit.letter${i + 1}date.input`}
+                      className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <p
+                      className="block text-sm font-semibold mb-1"
+                      style={labelStyle}
+                    >
+                      Preview / Excerpt
+                    </p>
+                    <Textarea
+                      value={letter.excerpt}
+                      onChange={(e) =>
+                        setLetterField(i, "excerpt", e.target.value)
+                      }
+                      rows={3}
+                      className="w-full rounded-lg text-sm"
+                      style={{
+                        borderColor: "#D8C9B3",
+                        backgroundColor: "#FFF9F3",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <p
+                      className="block text-sm font-semibold mb-1"
+                      style={labelStyle}
+                    >
+                      Full Letter Body
+                    </p>
+                    <Textarea
+                      value={letter.body}
+                      onChange={(e) =>
+                        setLetterField(i, "body", e.target.value)
+                      }
+                      rows={5}
+                      className="w-full rounded-lg text-sm"
+                      style={{
+                        borderColor: "#D8C9B3",
+                        backgroundColor: "#FFF9F3",
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </TabsContent>
+
+            {/* Story Tab */}
+            <TabsContent value="story" className="flex flex-col gap-4">
+              <div>
+                <p
+                  className="block text-sm font-semibold mb-1"
+                  style={labelStyle}
+                >
+                  &ldquo;How it began&rdquo; subheading
+                </p>
+                <input
+                  type="text"
+                  value={draft.storyHowItBegan}
+                  onChange={(e) => setField("storyHowItBegan", e.target.value)}
+                  data-ocid="edit.story.input"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <p
+                  className="block text-sm font-semibold mb-1"
+                  style={labelStyle}
+                >
+                  Paragraph 1
+                </p>
+                <Textarea
+                  value={draft.storyPara1}
+                  onChange={(e) => setField("storyPara1", e.target.value)}
+                  rows={4}
+                  data-ocid="edit.story.para1.textarea"
+                  className="w-full rounded-lg text-sm"
+                  style={{ borderColor: "#D8C9B3", backgroundColor: "#FFF9F3" }}
+                />
+              </div>
+              <div>
+                <p
+                  className="block text-sm font-semibold mb-1"
+                  style={labelStyle}
+                >
+                  Paragraph 2
+                </p>
+                <Textarea
+                  value={draft.storyPara2}
+                  onChange={(e) => setField("storyPara2", e.target.value)}
+                  rows={3}
+                  className="w-full rounded-lg text-sm"
+                  style={{ borderColor: "#D8C9B3", backgroundColor: "#FFF9F3" }}
+                />
+              </div>
+              <div>
+                <p
+                  className="block text-sm font-semibold mb-1"
+                  style={labelStyle}
+                >
+                  Closing line
+                </p>
+                <input
+                  type="text"
+                  value={draft.storyClosing}
+                  onChange={(e) => setField("storyClosing", e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                />
+              </div>
+            </TabsContent>
+
+            {/* Quote Tab */}
+            <TabsContent value="quote" className="flex flex-col gap-4">
+              <div>
+                <p
+                  className="block text-sm font-semibold mb-1"
+                  style={labelStyle}
+                >
+                  Quote Text
+                </p>
+                <Textarea
+                  value={draft.quoteText}
+                  onChange={(e) => setField("quoteText", e.target.value)}
+                  rows={4}
+                  data-ocid="edit.quote.textarea"
+                  className="w-full rounded-lg text-sm"
+                  style={{ borderColor: "#D8C9B3", backgroundColor: "#FFF9F3" }}
+                />
+              </div>
+              <div>
+                <p
+                  className="block text-sm font-semibold mb-1"
+                  style={labelStyle}
+                >
+                  Attribution
+                </p>
+                <input
+                  type="text"
+                  value={draft.quoteAttribution}
+                  onChange={(e) => setField("quoteAttribution", e.target.value)}
+                  data-ocid="edit.quote.attribution.input"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                />
+              </div>
+            </TabsContent>
+
+            {/* Headings Tab */}
+            <TabsContent value="headings" className="flex flex-col gap-4">
+              <div>
+                <p
+                  className="block text-sm font-semibold mb-1"
+                  style={labelStyle}
+                >
+                  Gallery subheading
+                </p>
+                <input
+                  type="text"
+                  value={draft.gallerySubheading}
+                  onChange={(e) =>
+                    setField("gallerySubheading", e.target.value)
+                  }
+                  data-ocid="edit.gallery.subheading.input"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <p
+                  className="block text-sm font-semibold mb-1"
+                  style={labelStyle}
+                >
+                  Letters subheading
+                </p>
+                <input
+                  type="text"
+                  value={draft.lettersSubheading}
+                  onChange={(e) =>
+                    setField("lettersSubheading", e.target.value)
+                  }
+                  data-ocid="edit.letters.subheading.input"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Footer */}
+        <div
+          className="px-6 py-4 flex gap-3 shrink-0"
+          style={{ borderTop: "1px solid #D8C9B3" }}
+        >
+          <button
+            type="button"
+            data-ocid="edit.save_button"
+            onClick={handleSave}
+            className="flex-1 py-2.5 rounded-full font-semibold text-sm transition-all hover:opacity-90 active:scale-95"
+            style={{ backgroundColor: "#B07A73", color: "#FAF6EE" }}
+          >
+            Save Changes
+          </button>
+          <button
+            type="button"
+            data-ocid="edit.cancel_button"
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-full font-semibold text-sm transition-all hover:opacity-80"
+            style={{ backgroundColor: "#EEE4D0", color: "#4A3830" }}
+          >
+            Cancel
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ===== LIGHTBOX =====
+function Lightbox({
+  photo,
+  gallery,
+  onClose,
+  onNav,
+}: {
+  photo: GalleryItem;
+  gallery: GalleryItem[];
+  onClose: () => void;
+  onNav: (item: GalleryItem) => void;
+}) {
+  const idx = gallery.findIndex((g) => g.id === photo.id);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && idx > 0) onNav(gallery[idx - 1]);
+      if (e.key === "ArrowRight" && idx < gallery.length - 1)
+        onNav(gallery[idx + 1]);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [idx, gallery, onClose, onNav]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      data-ocid="lightbox.modal"
+    >
+      {/* Backdrop */}
+      <button
+        type="button"
+        aria-label="Close lightbox"
+        className="absolute inset-0 w-full h-full cursor-default"
+        style={{ backgroundColor: "rgba(10,5,5,0.92)", border: "none" }}
+        onClick={onClose}
+      />
+
+      {/* Close */}
+      <button
+        type="button"
+        data-ocid="lightbox.close_button"
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold transition-all hover:scale-105"
+        style={{ backgroundColor: "rgba(176,122,115,0.9)", color: "white" }}
+        aria-label="Close"
+      >
+        ×
+      </button>
+
+      {/* Prev */}
+      {idx > 0 && (
+        <button
+          type="button"
+          data-ocid="lightbox.pagination_prev"
+          onClick={(e) => {
+            e.stopPropagation();
+            onNav(gallery[idx - 1]);
+          }}
+          className="absolute left-4 z-10 w-11 h-11 rounded-full flex items-center justify-center text-xl transition-all hover:scale-105"
+          style={{ backgroundColor: "rgba(176,122,115,0.85)", color: "white" }}
+          aria-label="Previous photo"
+        >
+          ‹
+        </button>
+      )}
+
+      {/* Next */}
+      {idx < gallery.length - 1 && (
+        <button
+          type="button"
+          data-ocid="lightbox.pagination_next"
+          onClick={(e) => {
+            e.stopPropagation();
+            onNav(gallery[idx + 1]);
+          }}
+          className="absolute right-4 z-10 w-11 h-11 rounded-full flex items-center justify-center text-xl transition-all hover:scale-105"
+          style={{ backgroundColor: "rgba(176,122,115,0.85)", color: "white" }}
+          aria-label="Next photo"
+        >
+          ›
+        </button>
+      )}
+
+      {/* Image */}
+      <motion.div
+        key={photo.id}
+        initial={{ opacity: 0, scale: 0.92 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative z-10 flex flex-col items-center gap-3 px-16"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <img
+          src={photo.photoUrl}
+          alt={photo.label}
+          className="max-w-3xl w-full rounded-2xl object-contain shadow-2xl"
+          style={{ maxHeight: "85vh" }}
+        />
+        <span
+          className="px-4 py-1 rounded-full text-sm font-semibold"
+          style={{ backgroundColor: "rgba(176,122,115,0.9)", color: "white" }}
+        >
+          {photo.label}
+        </span>
+        <span className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
+          {idx + 1} / {gallery.length}
+        </span>
+      </motion.div>
+    </div>
+  );
+}
+
+// ===== MAIN APP =====
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [letterOpen, setLetterOpen] = useState<number | null>(null);
@@ -250,6 +1169,12 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [editingLabelId, setEditingLabelId] = useState<number | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
+  const [lightboxPhoto, setLightboxPhoto] = useState<GalleryItem | null>(null);
+  const [showEditPanel, setShowEditPanel] = useState(false);
+  const [content, setContent] = useState<AppContent>(loadContent);
+
+  const { actor } = useActor();
+
   const titleClickCount = useRef(0);
   const titleClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addFileRef = useRef<HTMLInputElement>(null);
@@ -269,21 +1194,61 @@ export default function App() {
     { id: "moments", label: "Shared Moments" },
   ];
 
+  // Load photos and music from cloud on mount / actor ready
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run only when actor changes
+  useEffect(() => {
+    if (!actor) return;
+    (async () => {
+      // Refresh gallery photo URLs from cloud
+      const updated = await Promise.all(
+        gallery.map(async (item) => {
+          try {
+            const photo = await actor.getPhoto(item.label);
+            if (photo) {
+              return { ...item, photoUrl: photo.galleryImage.getDirectURL() };
+            }
+          } catch {
+            /* ignore */
+          }
+          return item;
+        }),
+      );
+      setGallery(updated);
+
+      // Load background music from cloud
+      try {
+        const track = await actor.getMusicTrack("background-music");
+        if (track) {
+          const url = track.audioFile.getDirectURL();
+          localStorage.setItem(MUSIC_KEY, url);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actor]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLetterOpen(null);
+      if (e.key === "Escape") {
+        if (lightboxPhoto) {
+          setLightboxPhoto(null);
+          return;
+        }
+        setLetterOpen(null);
+      }
     };
-    if (letterOpen !== null) window.addEventListener("keydown", handler);
+    window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [letterOpen]);
+  }, [lightboxPhoto]);
 
-  const activeLetter = letters.find((l) => l.id === letterOpen) ?? null;
+  const activeLetter =
+    letterOpen !== null ? (content.letters[letterOpen - 1] ?? null) : null;
 
   const updateGallery = useCallback((items: GalleryItem[]) => {
     setGallery(items);
-    if (!saveGallery(items)) {
-      alert("Photo too large, try a smaller image.");
-    }
+    saveGallery(items);
   }, []);
 
   const handleTitleClick = () => {
@@ -323,26 +1288,50 @@ export default function App() {
     replaceFileRef.current?.click();
   };
 
-  const readFileAsDataUrl = (file: File): Promise<string> =>
+  const fileToUint8Array = (file: File): Promise<Uint8Array> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
+      reader.onload = () =>
+        resolve(new Uint8Array(reader.result as ArrayBuffer));
       reader.onerror = reject;
-      reader.readAsDataURL(file);
+      reader.readAsArrayBuffer(file);
     });
 
   const handleReplaceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || replaceTargetId.current === null) return;
+    const targetId = replaceTargetId.current;
+    const targetItem = gallery.find((g) => g.id === targetId);
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      updateGallery(
-        gallery.map((g) =>
-          g.id === replaceTargetId.current ? { ...g, photoUrl: dataUrl } : g,
-        ),
-      );
+      if (actor && targetItem) {
+        toast("Uploading photo to cloud...");
+        const bytes = await fileToUint8Array(file);
+        const blob = ExternalBlob.fromBytes(bytes as Uint8Array<ArrayBuffer>);
+        await actor.addPhoto(targetItem.label, blob);
+        const photo = await actor.getPhoto(targetItem.label);
+        const photoUrl = photo
+          ? photo.galleryImage.getDirectURL()
+          : URL.createObjectURL(file);
+        updateGallery(
+          gallery.map((g) => (g.id === targetId ? { ...g, photoUrl } : g)),
+        );
+        toast("✅ Photo saved to cloud!");
+      } else {
+        // Fallback to local
+        const reader = new FileReader();
+        reader.onload = () => {
+          updateGallery(
+            gallery.map((g) =>
+              g.id === targetId
+                ? { ...g, photoUrl: reader.result as string }
+                : g,
+            ),
+          );
+        };
+        reader.readAsDataURL(file);
+      }
     } catch {
-      alert("Could not read file.");
+      toast("Failed to upload photo");
     }
     e.target.value = "";
     replaceTargetId.current = null;
@@ -355,12 +1344,31 @@ export default function App() {
       window.prompt("Enter a label for this memory:", "Our Moment") ??
       "Our Moment";
     try {
-      const dataUrl = await readFileAsDataUrl(file);
       const newId = Math.max(0, ...gallery.map((g) => g.id)) + 1;
       const bg = BG_COLORS[gallery.length % BG_COLORS.length];
-      updateGallery([...gallery, { id: newId, label, photoUrl: dataUrl, bg }]);
+      if (actor) {
+        toast("Uploading photo to cloud...");
+        const bytes = await fileToUint8Array(file);
+        const blob = ExternalBlob.fromBytes(bytes as Uint8Array<ArrayBuffer>);
+        await actor.addPhoto(label, blob);
+        const photo = await actor.getPhoto(label);
+        const photoUrl = photo
+          ? photo.galleryImage.getDirectURL()
+          : URL.createObjectURL(file);
+        updateGallery([...gallery, { id: newId, label, photoUrl, bg }]);
+        toast("✅ Photo saved to cloud!");
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          updateGallery([
+            ...gallery,
+            { id: newId, label, photoUrl: reader.result as string, bg },
+          ]);
+        };
+        reader.readAsDataURL(file);
+      }
     } catch {
-      alert("Could not read file.");
+      toast("Failed to upload photo");
     }
     e.target.value = "";
   };
@@ -375,6 +1383,19 @@ export default function App() {
       gallery.map((g) => (g.id === id ? { ...g, label: labelDraft } : g)),
     );
     setEditingLabelId(null);
+  };
+
+  const handleSaveContent = (updated: AppContent) => {
+    setContent(updated);
+    try {
+      localStorage.setItem(CONTENT_KEY, JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handlePhotoClick = (item: GalleryItem) => {
+    if (!editMode) setLightboxPhoto(item);
   };
 
   return (
@@ -515,21 +1536,7 @@ export default function App() {
           }}
         />
 
-        {hearts.map((h) => (
-          <span
-            key={h.id}
-            className="float-heart select-none"
-            style={{
-              left: h.left,
-              bottom: "-5%",
-              fontSize: `${h.size}px`,
-              animationDuration: `${h.duration}s`,
-              animationDelay: `${h.delay}s`,
-            }}
-          >
-            {h.emoji}
-          </span>
-        ))}
+        <PremiumParticles />
 
         <div className="relative z-10 max-w-7xl mx-auto px-6 h-full flex items-center">
           <motion.div
@@ -555,9 +1562,13 @@ export default function App() {
               className="font-display italic text-lg md:text-xl mb-8 leading-relaxed"
               style={{ color: "#4A3830" }}
             >
-              Every day with you is a blessing.
-              <br />
-              This is my love letter to you, Drithi.
+              {content.heroSubtitle.split("\n").map((line, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static subtitle lines
+                <span key={i}>
+                  {line}
+                  {i < content.heroSubtitle.split("\n").length - 1 && <br />}
+                </span>
+              ))}
             </p>
             <div className="flex flex-wrap gap-4">
               <button
@@ -595,7 +1606,7 @@ export default function App() {
       <section id="letters" className="py-20 px-4 max-w-7xl mx-auto">
         <FadeSection className="text-center mb-14">
           <p className="font-script text-2xl mb-1" style={{ color: "#B07A73" }}>
-            with all my heart
+            {content.lettersSubheading}
           </p>
           <h2
             className="font-display text-4xl md:text-5xl font-bold"
@@ -610,10 +1621,11 @@ export default function App() {
         </FadeSection>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {letters.map((letter, i) => (
-            <FadeSection key={letter.id} delay={i * 0.1}>
+          {content.letters.map((letter, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: static letters list
+            <FadeSection key={i} delay={i * 0.1}>
               <div
-                data-ocid={`letters.item.${letter.id}`}
+                data-ocid={`letters.item.${i + 1}`}
                 className="relative rounded-2xl p-6 flex flex-col h-full cursor-pointer group transition-all hover:-translate-y-1"
                 style={{
                   backgroundColor: "#FAF6EE",
@@ -641,8 +1653,8 @@ export default function App() {
                   </p>
                   <button
                     type="button"
-                    data-ocid={`letters.read_button.${letter.id}`}
-                    onClick={() => setLetterOpen(letter.id)}
+                    data-ocid={`letters.read_button.${i + 1}`}
+                    onClick={() => setLetterOpen(i + 1)}
                     className="text-xs font-semibold tracking-wide uppercase transition-colors group-hover:underline"
                     style={{ color: "#9C6A64" }}
                   >
@@ -694,11 +1706,7 @@ export default function App() {
                 className="font-display italic leading-relaxed"
                 style={{ color: "#4A3830" }}
               >
-                {activeLetter.excerpt} With every sunrise, I am reminded of how
-                lucky I am to have you in my life, Drithi. You are my sunshine,
-                my moonlight, and every star in between. My love for you grows
-                deeper with every passing day, and I would choose you again and
-                again, in every lifetime, in every world.
+                {activeLetter.body}
               </p>
               <p
                 className="mt-4 font-script text-2xl"
@@ -732,7 +1740,7 @@ export default function App() {
               className="font-script text-2xl mb-1"
               style={{ color: "#B07A73" }}
             >
-              our story in pictures
+              {content.gallerySubheading}
             </p>
             <h2
               className="font-display text-4xl md:text-5xl font-bold cursor-pointer select-none"
@@ -743,7 +1751,7 @@ export default function App() {
               }}
               title="Triple-click to toggle edit mode"
             >
-              Drithi's Memory Gallery
+              Drithi&apos;s Memory Gallery
             </h2>
             <div
               className="mx-auto mt-4 w-16 h-0.5"
@@ -777,6 +1785,14 @@ export default function App() {
                   data-ocid={`memories.item.${i + 1}`}
                   className="relative rounded-2xl overflow-hidden group cursor-pointer"
                   style={{ paddingBottom: "130%" }}
+                  onClick={() => handlePhotoClick(mem)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ")
+                      handlePhotoClick(mem);
+                  }}
+                  // biome-ignore lint/a11y/useSemanticElements: complex gallery card with overlapping controls
+                  role="button"
+                  tabIndex={editMode ? -1 : 0}
                 >
                   {mem.photoUrl ? (
                     <img
@@ -802,10 +1818,8 @@ export default function App() {
                     style={{ backgroundColor: "rgba(176,122,115,0.15)" }}
                   />
 
-                  {/* Edit mode controls */}
                   {editMode && (
                     <>
-                      {/* Remove button */}
                       <button
                         type="button"
                         data-ocid={`memories.delete_button.${i + 1}`}
@@ -819,7 +1833,6 @@ export default function App() {
                       >
                         ×
                       </button>
-                      {/* Replace photo button */}
                       <button
                         type="button"
                         data-ocid={`memories.edit_button.${i + 1}`}
@@ -841,7 +1854,7 @@ export default function App() {
                       <input
                         type="text"
                         value={labelDraft}
-                        data-ocid={"memories.input"}
+                        data-ocid="memories.input"
                         className="px-2 py-0.5 rounded-full text-xs font-semibold text-center outline-none"
                         style={{
                           backgroundColor: "rgba(243,236,220,0.96)",
@@ -890,7 +1903,6 @@ export default function App() {
               </FadeSection>
             ))}
 
-            {/* Add Memory card — only in edit mode */}
             {editMode && (
               <FadeSection delay={gallery.length * 0.08}>
                 <button
@@ -926,7 +1938,7 @@ export default function App() {
       <section id="story" className="py-20 px-4 max-w-4xl mx-auto text-center">
         <FadeSection>
           <p className="font-script text-2xl mb-1" style={{ color: "#B07A73" }}>
-            how it began
+            {content.storyHowItBegan}
           </p>
           <h2
             className="font-display text-4xl md:text-5xl font-bold mb-8"
@@ -942,22 +1954,16 @@ export default function App() {
             className="font-display italic text-lg leading-relaxed mb-6"
             style={{ color: "#4A3830" }}
           >
-            It started with a glance — and somehow, the entire universe
-            conspired for us to meet. Every step I took before I knew you was
-            leading me to you, Drithi. You walked into my life and everything
-            changed: the colors became brighter, the music became sweeter, and
-            every ordinary moment became extraordinary.
+            {content.storyPara1}
           </p>
           <p
             className="font-display italic text-lg leading-relaxed"
             style={{ color: "#4A3830" }}
           >
-            I cherish every laugh we share, every quiet moment, every adventure
-            and every ordinary Tuesday. You are my favorite person in the world,
-            and I am grateful for every single day with you.
+            {content.storyPara2}
           </p>
           <p className="mt-8 font-script text-3xl" style={{ color: "#9C6A64" }}>
-            — With all my love ♥
+            {content.storyClosing}
           </p>
         </FadeSection>
       </section>
@@ -980,14 +1986,13 @@ export default function App() {
               className="font-display italic text-xl md:text-2xl leading-relaxed"
               style={{ color: "#2A2420" }}
             >
-              &ldquo;In all the world, there is no heart for me like yours. In
-              all the world, there is no love for you like mine.&rdquo;
+              &ldquo;{content.quoteText}&rdquo;
             </blockquote>
             <p
               className="mt-6 font-script text-3xl"
               style={{ color: "#9C6A64" }}
             >
-              — Maya Angelou
+              {content.quoteAttribution}
             </p>
             <p className="text-3xl mt-4" style={{ color: "#E7A3A8" }}>
               ❤ ❤ ❤
@@ -1043,6 +2048,49 @@ export default function App() {
           </p>
         </div>
       </footer>
+
+      {/* ===== LIGHTBOX ===== */}
+      <AnimatePresence>
+        {lightboxPhoto && (
+          <Lightbox
+            photo={lightboxPhoto}
+            gallery={gallery}
+            onClose={() => setLightboxPhoto(null)}
+            onNav={setLightboxPhoto}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ===== EDIT PANEL ===== */}
+      <AnimatePresence>
+        {showEditPanel && (
+          <EditPanel
+            content={content}
+            onSave={handleSaveContent}
+            onClose={() => setShowEditPanel(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ===== FLOATING EDIT BUTTON ===== */}
+      <button
+        type="button"
+        data-ocid="edit.open_modal_button"
+        onClick={() => setShowEditPanel(true)}
+        title="Edit app content"
+        className="fixed bottom-6 left-6 z-40 w-12 h-12 rounded-full flex items-center justify-center shadow-lg text-xl transition-all hover:scale-105 active:scale-95"
+        style={{
+          backgroundColor: "#FAF6EE",
+          border: "2px solid #D8C9B3",
+          color: "#B07A73",
+        }}
+        aria-label="Edit content"
+      >
+        ✏️
+      </button>
+
+      {/* ===== MUSIC PLAYER ===== */}
+      <MusicPlayer />
     </div>
   );
 }
