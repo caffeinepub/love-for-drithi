@@ -517,8 +517,10 @@ function MusicPlayer() {
           setIsPlaying(true);
           toast("✅ Music saved to cloud!");
         }
-      } catch {
-        toast("Failed to upload music");
+      } catch (err) {
+        console.error("Music upload error:", err);
+        const msg = err instanceof Error ? err.message : String(err);
+        toast(`Failed to upload music: ${msg}`);
       }
     } else {
       const reader = new FileReader();
@@ -1330,8 +1332,10 @@ export default function App() {
         };
         reader.readAsDataURL(file);
       }
-    } catch {
-      toast("Failed to upload photo");
+    } catch (err) {
+      console.error("Photo upload error:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      toast(`Failed to upload photo: ${msg}`);
     }
     e.target.value = "";
     replaceTargetId.current = null;
@@ -1367,8 +1371,10 @@ export default function App() {
         };
         reader.readAsDataURL(file);
       }
-    } catch {
-      toast("Failed to upload photo");
+    } catch (err) {
+      console.error("Add photo error:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      toast(`Failed to upload photo: ${msg}`);
     }
     e.target.value = "";
   };

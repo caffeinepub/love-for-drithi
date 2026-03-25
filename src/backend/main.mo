@@ -1,18 +1,16 @@
+import Map "mo:core/Map";
 import Time "mo:core/Time";
 import Order "mo:core/Order";
-import Map "mo:core/Map";
-import Text "mo:core/Text";
 import Int "mo:core/Int";
 import List "mo:core/List";
+import Text "mo:core/Text";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 
-import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
-import AccessControl "authorization/access-control";
+import MixinStorage "blob-storage/Mixin";
 import MixinAuthorization "authorization/MixinAuthorization";
-
-// Use data migration for persistent changes
+import AccessControl "authorization/access-control";
 
 actor {
   // Initialize the access control system
@@ -59,9 +57,10 @@ actor {
 
   public type UserProfile = {
     name : Text;
+    // Add other fields if needed
   };
 
-  // Initialize persistent state - actor fields
+  // Internal persistent state
   let loveMessages = Map.empty<Text, LoveMessage>();
   let memories = List.empty<MemoryItem>();
   let photos = Map.empty<Text, Photo>();
@@ -70,10 +69,10 @@ actor {
 
   include MixinStorage();
 
-  // User profile management
+  // User profile management - PROTECTED
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view profiles");
+      Runtime.trap("Unauthorized: Only users can access profiles");
     };
     userProfiles.get(caller);
   };
@@ -92,28 +91,29 @@ actor {
     userProfiles.add(caller, profile);
   };
 
-  // Love messages - only users can add
-  public shared ({ caller }) func addLoveMessage(title : Text, content : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can add love messages");
-    };
-    if (loveMessages.containsKey(title)) {
-      Runtime.trap("Message with this title already exists");
-    };
-    let date = Time.now();
+  // Love messages - OPEN to all callers including anonymous
+  public shared func addLoveMessage(title : Text, content : Text) : async () {
     let message = {
       title;
-      date;
+      date = Time.now();
       content;
     };
     loveMessages.add(title, message);
   };
 
-  // Memories - only users can add
-  public shared ({ caller }) func addMemory(name : Text, description : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can add memories");
+  public query func getLoveMessage(title : Text) : async LoveMessage {
+    switch (loveMessages.get(title)) {
+      case (null) { Runtime.trap("Message not found") };
+      case (?msg) { msg };
     };
+  };
+
+  public query func getAllLoveMessages() : async [LoveMessage] {
+    loveMessages.values().toArray().sort(LoveMessage.compareByDate);
+  };
+
+  // Memories - OPEN to all callers including anonymous
+  public shared func addMemory(name : Text, description : Text) : async () {
     let memory = {
       name;
       description;
@@ -121,70 +121,35 @@ actor {
     memories.add(memory);
   };
 
-  // Photos - only users can add
-  public shared ({ caller }) func addPhoto(title : Text, galleryImage : Storage.ExternalBlob) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can add photos");
-    };
-    let timestamp = Time.now();
+  public query func getAllMemories() : async [MemoryItem] {
+    memories.toArray().sort();
+  };
+
+  // Photos - OPEN to all callers including anonymous
+  public shared func addPhoto(title : Text, galleryImage : Storage.ExternalBlob) : async () {
     let photo : Photo = {
       title;
-      timestamp;
+      timestamp = Time.now();
       galleryImage;
     };
     photos.add(title, photo);
   };
 
-  // Music - only users can add
-  public shared ({ caller }) func addMusicTrack(title : Text, audioFile : Storage.ExternalBlob) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can add music tracks");
-    };
-    let timestamp = Time.now();
+  public query func getPhoto(title : Text) : async ?Photo {
+    photos.get(title);
+  };
+
+  // Music tracks - OPEN to all callers including anonymous
+  public shared func addMusicTrack(title : Text, audioFile : Storage.ExternalBlob) : async () {
     let track : MusicTrack = {
       title;
-      timestamp;
+      timestamp = Time.now();
       audioFile;
     };
     music.add(title, track);
   };
 
-  // Query functions - readable by authenticated users (not guests)
-  public query ({ caller }) func getLoveMessage(title : Text) : async LoveMessage {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view love messages");
-    };
-    switch (loveMessages.get(title)) {
-      case (null) { Runtime.trap("Message not found") };
-      case (?msg) { msg };
-    };
-  };
-
-  public query ({ caller }) func getAllLoveMessages() : async [LoveMessage] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view love messages");
-    };
-    loveMessages.values().toArray().sort(LoveMessage.compareByDate);
-  };
-
-  public query ({ caller }) func getAllMemories() : async [MemoryItem] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view memories");
-    };
-    memories.toArray().sort();
-  };
-
-  public query ({ caller }) func getPhoto(title : Text) : async ?Photo {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view photos");
-    };
-    photos.get(title);
-  };
-
-  public query ({ caller }) func getMusicTrack(title : Text) : async ?MusicTrack {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view music tracks");
-    };
+  public query func getMusicTrack(title : Text) : async ?MusicTrack {
     music.get(title);
   };
 };
