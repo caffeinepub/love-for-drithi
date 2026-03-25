@@ -1,0 +1,105 @@
+@import url("https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+    /* Warm cream #F3ECDC → oklch(0.944 0.025 80) */
+    --background: 0.944 0.025 80;
+    /* Deep brown #2A2420 → oklch(0.22 0.02 50) */
+    --foreground: 0.22 0.02 50;
+    /* Card: slightly lighter cream */
+    --card: 0.96 0.018 78;
+    --card-foreground: 0.22 0.02 50;
+    --popover: 0.96 0.018 78;
+    --popover-foreground: 0.22 0.02 50;
+    /* Primary: dusty rose #B07A73 → oklch(0.60 0.07 20) */
+    --primary: 0.6 0.07 20;
+    --primary-foreground: 0.97 0.01 80;
+    /* Secondary: lighter cream tone */
+    --secondary: 0.93 0.022 75;
+    --secondary-foreground: 0.22 0.02 50;
+    --muted: 0.93 0.022 75;
+    --muted-foreground: 0.5 0.03 50;
+    /* Accent: deeper rose #9C6A64 → oklch(0.54 0.08 20) */
+    --accent: 0.54 0.08 20;
+    --accent-foreground: 0.97 0.01 80;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    /* Border: light tan #D8C9B3 → oklch(0.84 0.025 75) */
+    --border: 0.84 0.025 75;
+    --input: 0.84 0.025 75;
+    --ring: 0.6 0.07 20;
+    --chart-1: 0.646 0.222 41.116;
+    --chart-2: 0.6 0.118 184.704;
+    --chart-3: 0.398 0.07 227.392;
+    --chart-4: 0.828 0.189 84.429;
+    --chart-5: 0.769 0.188 70.08;
+    --sidebar: 0.944 0.025 80;
+    --sidebar-foreground: 0.22 0.02 50;
+    --sidebar-primary: 0.6 0.07 20;
+    --sidebar-primary-foreground: 0.97 0.01 80;
+    --sidebar-accent: 0.93 0.022 75;
+    --sidebar-accent-foreground: 0.22 0.02 50;
+    --sidebar-border: 0.84 0.025 75;
+    --sidebar-ring: 0.6 0.07 20;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Figtree", "General Sans", sans-serif;
+  }
+}
+
+/* Floating hearts animation */
+@keyframes floatHeart {
+  0% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.6;
+    transform: translateY(-40vh) scale(1.1) rotate(10deg);
+  }
+  100% {
+    transform: translateY(-85vh) scale(0.8) rotate(-10deg);
+    opacity: 0;
+  }
+}
+
+.float-heart {
+  position: absolute;
+  animation: floatHeart linear infinite;
+  pointer-events: none;
+  user-select: none;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+.font-script {
+  font-family: "Great Vibes", cursive;
+}
+
+.font-serif-display {
+  font-family: "Playfair Display", Georgia, serif;
+}
