@@ -135,14 +135,14 @@ const memories = [
     label: "First Date",
     bg: "#f9c5cb",
     photo:
-      "/assets/uploads/img_5703-019d26f7-da96-73ca-8164-6863235eb7cd-1.jpeg",
+      "/assets/uploads/img_5707-019d26f7-daea-70a8-9a5f-f155f1811d08-2.jpeg",
   },
   {
     id: 2,
     label: "Summer Trip",
     bg: "#fde68a",
     photo:
-      "/assets/uploads/img_5707-019d26f7-daea-70a8-9a5f-f155f1811d08-2.jpeg",
+      "/assets/uploads/img_5703-019d26f7-da96-73ca-8164-6863235eb7cd-1.jpeg",
   },
   {
     id: 3,
