@@ -468,6 +468,27 @@ function MusicPlayer() {
     if (saved) setAudioSrc(saved);
   }, []);
 
+  // Load music from cloud when actor is ready
+  useEffect(() => {
+    if (!actor) return;
+    actor
+      .getMusicTrack("background-music")
+      .then((track) => {
+        if (track) {
+          const url = track.audioFile.getDirectURL();
+          setAudioSrc(url);
+          try {
+            localStorage.setItem(MUSIC_KEY, url);
+          } catch {
+            /* ignore */
+          }
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      });
+  }, [actor]);
+
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
@@ -1460,34 +1481,8 @@ export default function App() {
   useEffect(() => {
     if (!actor) return;
     (async () => {
-      // Refresh gallery photo URLs from cloud
-      const updated = await Promise.all(
-        gallery.map(async (item) => {
-          try {
-            const photo = await actor.getPhoto(item.label);
-            if (photo) {
-              return { ...item, photoUrl: photo.galleryImage.getDirectURL() };
-            }
-          } catch {
-            /* ignore */
-          }
-          return item;
-        }),
-      );
-      setGallery(updated);
-
-      // Load background music from cloud
-      try {
-        const track = await actor.getMusicTrack("background-music");
-        if (track) {
-          const url = track.audioFile.getDirectURL();
-          localStorage.setItem(MUSIC_KEY, url);
-        }
-      } catch {
-        /* ignore */
-      }
-
-      // Load app content from cloud
+      // Step 1: Load app content from cloud first
+      let cloudGalleryItems: { id: number; label: string; bg: string }[] = [];
       try {
         const cloudContent = await actor.getAppContent();
         if (cloudContent) {
@@ -1499,22 +1494,75 @@ export default function App() {
           };
           setContent(merged);
           contentRef.current = merged;
-          // Apply gallery metadata from cloud if present
-          if (parsed.galleryItems && parsed.galleryItems.length > 0) {
-            setGallery((prev) => {
-              const updated = prev.map((item) => {
-                const meta = (parsed.galleryItems ?? []).find(
-                  (m) => m.id === item.id,
-                );
-                if (meta) return { ...item, label: meta.label, bg: meta.bg };
-                return item;
-              });
-              saveGallery(updated);
-              return updated;
-            });
-          }
           try {
             localStorage.setItem(CONTENT_KEY, JSON.stringify(merged));
+          } catch {
+            /* ignore */
+          }
+          if (parsed.galleryItems && parsed.galleryItems.length > 0) {
+            cloudGalleryItems = parsed.galleryItems;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+
+      // Step 2: Apply gallery metadata from cloud, then fetch photos by ID
+      setGallery((prev) => {
+        const base =
+          cloudGalleryItems.length > 0
+            ? prev.map((item) => {
+                const meta = cloudGalleryItems.find((m) => m.id === item.id);
+                if (meta) return { ...item, label: meta.label, bg: meta.bg };
+                return item;
+              })
+            : prev;
+        // Save merged metadata locally
+        try {
+          localStorage.setItem(GALLERY_KEY, JSON.stringify(base));
+        } catch {
+          /* ignore */
+        }
+        return base;
+      });
+
+      // Step 3: Fetch photos by ID (not label)
+      setGallery((prev) => {
+        const base = [...prev];
+        (async () => {
+          const updated = await Promise.all(
+            base.map(async (item) => {
+              try {
+                const photo = await actor.getPhoto(String(item.id));
+                if (photo) {
+                  return {
+                    ...item,
+                    photoUrl: photo.galleryImage.getDirectURL(),
+                  };
+                }
+              } catch {
+                /* ignore */
+              }
+              return item;
+            }),
+          );
+          setGallery(updated);
+          try {
+            localStorage.setItem(GALLERY_KEY, JSON.stringify(updated));
+          } catch {
+            /* ignore */
+          }
+        })();
+        return base;
+      });
+
+      // Step 4: Load background music from cloud
+      try {
+        const track = await actor.getMusicTrack("background-music");
+        if (track) {
+          const url = track.audioFile.getDirectURL();
+          try {
+            localStorage.setItem(MUSIC_KEY, url);
           } catch {
             /* ignore */
           }
@@ -1523,7 +1571,6 @@ export default function App() {
         /* ignore */
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actor]);
 
   useEffect(() => {
@@ -1618,8 +1665,8 @@ export default function App() {
         toast("Uploading photo to cloud...");
         const bytes = await fileToUint8Array(file);
         const blob = ExternalBlob.fromBytes(bytes as Uint8Array<ArrayBuffer>);
-        await actor.addPhoto(targetItem.label, blob);
-        const photo = await actor.getPhoto(targetItem.label);
+        await actor.addPhoto(String(targetId), blob);
+        const photo = await actor.getPhoto(String(targetId));
         const photoUrl = photo
           ? photo.galleryImage.getDirectURL()
           : URL.createObjectURL(file);
@@ -1663,8 +1710,8 @@ export default function App() {
         toast("Uploading photo to cloud...");
         const bytes = await fileToUint8Array(file);
         const blob = ExternalBlob.fromBytes(bytes as Uint8Array<ArrayBuffer>);
-        await actor.addPhoto(label, blob);
-        const photo = await actor.getPhoto(label);
+        await actor.addPhoto(String(newId), blob);
+        const photo = await actor.getPhoto(String(newId));
         const photoUrl = photo
           ? photo.galleryImage.getDirectURL()
           : URL.createObjectURL(file);

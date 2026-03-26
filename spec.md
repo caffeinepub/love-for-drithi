@@ -1,43 +1,31 @@
 # Love for Drithi
 
 ## Current State
-- Full romantic web app with hero section, love letters, memory gallery, story, quote, and music player
-- All data (gallery photos, music, content) saved to localStorage only — changes don't sync across devices
-- Hero section has floating elements using emoji: 🌸, 💕, ✿ (flowers and hearts mix with flower/bouquet SVG decorations)
-- Gallery: 5 photos loaded from static assets, managed via localStorage
-- Music player: uploads and saves MP3 as base64 in localStorage
-- Edit mode: all content editable via ✏️ panel (bottom-left)
+The app has cloud sync implemented via ICP backend, but several critical bugs prevent reliable cross-device sync:
+
+1. **Photos stored by label (not ID)**: `actor.addPhoto(targetItem.label, ...)` — if a label is renamed, future lookups (`actor.getPhoto(newLabel)`) fail to find the photo stored under the old label.
+2. **MusicPlayer does not load from cloud on mount**: It only reads `localStorage`, so a new device never gets the uploaded music unless page is refreshed after localStorage is populated.
+3. **Gallery loading sequence is wrong**: Photos are fetched by (stale) label before cloud metadata is applied, causing mismatch.
+4. **`saveGallery` only writes to localStorage** (not cloud), though `updateGallery` does call `saveAppContent`. The sequence is correct but relies on `actorRef.current` being set.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Cloud storage via blob-storage component for gallery photos (upload to ICP backend, retrieve via URL)
-- Cloud storage for background music (upload MP3 to ICP backend)
-- Premium interactive front page animation: flowers (🌸🌺🌹🌷) and hearts (❤️💕💗💖) only — no bouquets, no other elements
-- Particles that burst on click/tap in hero section
-- Mouse/touch parallax effect on floating elements
-- Glow/pulse animations on hearts
-- Varied sizes, speeds, and entry positions for floating elements
+- MusicPlayer: useEffect to load music from cloud via `actor` when actor becomes available, setting `audioSrc` directly.
 
 ### Modify
-- Gallery photo upload: instead of converting to base64 dataURL and storing in localStorage, upload to blob-storage canister and store the returned URL
-- Music upload: instead of storing base64 in localStorage, upload to blob-storage and use the returned URL
-- Floating elements in hero: replace current hearts array (with 🌸, 💕, ✿ emojis) with a premium animated system using only flowers and hearts with interactive effects
-- Remove RoseIllustration and FloralCorner SVG components used as background decorations (replace with new premium particle system)
+- All `actor.addPhoto(label, blob)` calls → use `String(item.id)` as the key.
+- All `actor.getPhoto(label)` calls → use `String(item.id)` as the key.
+- Gallery cloud loading sequence: load `getAppContent()` first to get correct metadata (labels, IDs), update gallery state, THEN load photos by ID.
+- `handleAddFile`: use `String(newId)` as the photo storage key instead of `label`.
+- Remove localStorage fallback for music display; always prefer cloud URL.
 
 ### Remove
-- localStorage usage for gallery photos and music (replace with cloud URLs)
-- Old `hearts` array and basic CSS float animation for the hero
+- Nothing removed.
 
 ## Implementation Plan
-1. Install blob-storage hooks from the Caffeine component (use `useBlobStorage` hook pattern)
-2. Replace gallery photo upload handler to upload to blob-storage and use returned URL instead of base64
-3. Replace music upload handler to upload to blob-storage and use returned URL
-4. Build new `PremiumHeroParticles` component with:
-   - 30+ floating flowers and hearts with varied sizes (12px–40px), speeds, delays, horizontal positions
-   - CSS keyframe animations for float-up, sway, and fade
-   - Click/tap burst effect: on click anywhere in hero, spawn 8–12 particles that explode outward and fade
-   - Subtle mouse parallax: floating elements shift slightly based on cursor position
-   - Hearts pulse/glow with a soft pink radial glow filter
-   - Elements only: 🌸 🌺 🌹 🌷 ❤️ 💕 💗 💖 💓 🌼
-5. Keep all other sections (letters, gallery, story, quote, music player, edit panel) exactly as-is
+1. Fix `handleReplaceFile`: use `String(targetId)` as photo key.
+2. Fix `handleAddFile`: use `String(newId)` as photo key.
+3. Fix main cloud load useEffect: load `getAppContent()` first, apply gallery metadata, then fetch photos by `String(item.id)`.
+4. Fix MusicPlayer component: add useEffect to load music track from cloud when actor is ready, call `setAudioSrc(url)`.
+5. Validate and deploy.
