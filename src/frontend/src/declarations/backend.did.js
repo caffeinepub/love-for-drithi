@@ -31,6 +31,7 @@ export const LoveMessage = IDL.Record({
   'content' : IDL.Text,
   'date' : Time,
 });
+export const LoveQuote = IDL.Record({ 'id' : IDL.Nat, 'text' : IDL.Text });
 export const MemoryItem = IDL.Record({
   'name' : IDL.Text,
   'description' : IDL.Text,
@@ -76,23 +77,29 @@ export const idlService = IDL.Service({
   '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addLoveMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
+  'addLoveQuote' : IDL.Func([IDL.Text], [IDL.Nat], []),
   'addMemory' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'addMusicTrack' : IDL.Func([IDL.Text, ExternalBlob], [], []),
   'addPhoto' : IDL.Func([IDL.Text, ExternalBlob], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'getAllLoveMessages' : IDL.Func([], [IDL.Vec(LoveMessage)], ['query']),
+  'getAllLoveQuotes' : IDL.Func([], [IDL.Vec(LoveQuote)], ['query']),
   'getAllMemories' : IDL.Func([], [IDL.Vec(MemoryItem)], ['query']),
+  'getAppContent' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getLoveMessage' : IDL.Func([IDL.Text], [LoveMessage], ['query']),
+  'getLoveQuote' : IDL.Func([IDL.Nat], [LoveQuote], ['query']),
   'getMusicTrack' : IDL.Func([IDL.Text], [IDL.Opt(MusicTrack)], ['query']),
   'getPhoto' : IDL.Func([IDL.Text], [IDL.Opt(Photo)], ['query']),
+  'getRandomLoveQuote' : IDL.Func([], [LoveQuote], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'saveAppContent' : IDL.Func([IDL.Text], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
 });
 
@@ -122,6 +129,7 @@ export const idlFactory = ({ IDL }) => {
     'content' : IDL.Text,
     'date' : Time,
   });
+  const LoveQuote = IDL.Record({ 'id' : IDL.Nat, 'text' : IDL.Text });
   const MemoryItem = IDL.Record({
     'name' : IDL.Text,
     'description' : IDL.Text,
@@ -167,23 +175,29 @@ export const idlFactory = ({ IDL }) => {
     '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addLoveMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
+    'addLoveQuote' : IDL.Func([IDL.Text], [IDL.Nat], []),
     'addMemory' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'addMusicTrack' : IDL.Func([IDL.Text, ExternalBlob], [], []),
     'addPhoto' : IDL.Func([IDL.Text, ExternalBlob], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'getAllLoveMessages' : IDL.Func([], [IDL.Vec(LoveMessage)], ['query']),
+    'getAllLoveQuotes' : IDL.Func([], [IDL.Vec(LoveQuote)], ['query']),
     'getAllMemories' : IDL.Func([], [IDL.Vec(MemoryItem)], ['query']),
+    'getAppContent' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getLoveMessage' : IDL.Func([IDL.Text], [LoveMessage], ['query']),
+    'getLoveQuote' : IDL.Func([IDL.Nat], [LoveQuote], ['query']),
     'getMusicTrack' : IDL.Func([IDL.Text], [IDL.Opt(MusicTrack)], ['query']),
     'getPhoto' : IDL.Func([IDL.Text], [IDL.Opt(Photo)], ['query']),
+    'getRandomLoveQuote' : IDL.Func([], [LoveQuote], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'saveAppContent' : IDL.Func([IDL.Text], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   });
 };

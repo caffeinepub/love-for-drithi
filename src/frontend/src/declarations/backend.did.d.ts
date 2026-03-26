@@ -16,6 +16,7 @@ export interface LoveMessage {
   'content' : string,
   'date' : Time,
 }
+export interface LoveQuote { 'id' : bigint, 'text' : string }
 export interface MemoryItem { 'name' : string, 'description' : string }
 export interface MusicTrack {
   'title' : string,
@@ -61,19 +62,25 @@ export interface _SERVICE {
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addLoveMessage' : ActorMethod<[string, string], undefined>,
+  'addLoveQuote' : ActorMethod<[string], bigint>,
   'addMemory' : ActorMethod<[string, string], undefined>,
   'addMusicTrack' : ActorMethod<[string, ExternalBlob], undefined>,
   'addPhoto' : ActorMethod<[string, ExternalBlob], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'getAllLoveMessages' : ActorMethod<[], Array<LoveMessage>>,
+  'getAllLoveQuotes' : ActorMethod<[], Array<LoveQuote>>,
   'getAllMemories' : ActorMethod<[], Array<MemoryItem>>,
+  'getAppContent' : ActorMethod<[], [] | [string]>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getLoveMessage' : ActorMethod<[string], LoveMessage>,
+  'getLoveQuote' : ActorMethod<[bigint], LoveQuote>,
   'getMusicTrack' : ActorMethod<[string], [] | [MusicTrack]>,
   'getPhoto' : ActorMethod<[string], [] | [Photo]>,
+  'getRandomLoveQuote' : ActorMethod<[], LoveQuote>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'saveAppContent' : ActorMethod<[string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

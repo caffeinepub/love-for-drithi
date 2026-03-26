@@ -29,6 +29,10 @@ export interface LoveMessage {
     content: string;
     date: Time;
 }
+export interface LoveQuote {
+    id: bigint;
+    text: string;
+}
 export interface UserProfile {
     name: string;
 }
@@ -44,18 +48,24 @@ export enum UserRole {
 }
 export interface backendInterface {
     addLoveMessage(title: string, content: string): Promise<void>;
+    addLoveQuote(text: string): Promise<bigint>;
     addMemory(name: string, description: string): Promise<void>;
     addMusicTrack(title: string, audioFile: ExternalBlob): Promise<void>;
     addPhoto(title: string, galleryImage: ExternalBlob): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     getAllLoveMessages(): Promise<Array<LoveMessage>>;
+    getAllLoveQuotes(): Promise<Array<LoveQuote>>;
     getAllMemories(): Promise<Array<MemoryItem>>;
+    getAppContent(): Promise<string | null>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getLoveMessage(title: string): Promise<LoveMessage>;
+    getLoveQuote(id: bigint): Promise<LoveQuote>;
     getMusicTrack(title: string): Promise<MusicTrack | null>;
     getPhoto(title: string): Promise<Photo | null>;
+    getRandomLoveQuote(): Promise<LoveQuote>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
+    saveAppContent(jsonText: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
 }

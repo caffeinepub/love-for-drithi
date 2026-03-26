@@ -1050,6 +1050,253 @@ function EditPanel({
   );
 }
 
+// ===== COUNTDOWN SECTION =====
+function daysUntilNextBirthday(month: number, day: number): number {
+  const today = new Date();
+  const thisYear = new Date(today.getFullYear(), month - 1, day);
+  const nextYear = new Date(today.getFullYear() + 1, month - 1, day);
+  const target = today > thisYear ? nextYear : thisYear;
+  return Math.max(
+    0,
+    Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)),
+  );
+}
+
+function CountdownSection() {
+  const anniversary = new Date("2024-12-31");
+  const today = new Date();
+  const daysTogether = Math.max(
+    0,
+    Math.floor(
+      (today.getTime() - anniversary.getTime()) / (1000 * 60 * 60 * 24),
+    ),
+  );
+  const mehulBday = daysUntilNextBirthday(8, 25);
+  const drithiBday = daysUntilNextBirthday(12, 18);
+
+  const cards = [
+    {
+      emoji: "💑",
+      label: "Days Together",
+      value: daysTogether,
+      sublabel: "since 31 Dec 2024",
+      color: "#9C6A64",
+    },
+    {
+      emoji: "🎂",
+      label: "Mehul's Birthday",
+      value: mehulBday,
+      sublabel: "days to go · 25 Aug",
+      color: "#B07A73",
+    },
+    {
+      emoji: "🎀",
+      label: "Drithi's Birthday",
+      value: drithiBday,
+      sublabel: "days to go · 18 Dec",
+      color: "#9C6A64",
+    },
+  ];
+
+  return (
+    <section
+      id="countdown"
+      className="py-16 px-4"
+      style={{ backgroundColor: "#FAF6EE" }}
+    >
+      <div className="max-w-4xl mx-auto">
+        <FadeSection className="text-center mb-10">
+          <p className="font-script text-2xl mb-1" style={{ color: "#B07A73" }}>
+            our milestones
+          </p>
+          <h2
+            className="font-display text-4xl md:text-5xl font-bold"
+            style={{ color: "#2A2420" }}
+          >
+            Counting Every Moment
+          </h2>
+          <div
+            className="mx-auto mt-4 w-16 h-0.5"
+            style={{ backgroundColor: "#D8C9B3" }}
+          />
+        </FadeSection>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {cards.map((card, i) => (
+            <FadeSection key={card.label} delay={i * 0.12}>
+              <div
+                data-ocid={`countdown.item.${i + 1}`}
+                className="relative rounded-3xl p-8 text-center overflow-hidden"
+                style={{
+                  backgroundColor: "#FFF9F3",
+                  border: "1px solid #D8C9B3",
+                  boxShadow: "0 4px 20px rgba(42,36,32,0.07)",
+                }}
+              >
+                <FloralCorner className="absolute top-0 left-0 opacity-40" />
+                <FloralCorner className="absolute bottom-0 right-0 rotate-180 opacity-40" />
+                <div className="relative z-10">
+                  <div className="text-4xl mb-3">{card.emoji}</div>
+                  <div
+                    className="font-display text-6xl font-bold mb-1"
+                    style={{ color: card.color }}
+                  >
+                    {card.value}
+                  </div>
+                  <div
+                    className="font-display text-sm font-semibold uppercase tracking-wider mb-1"
+                    style={{ color: "#2A2420" }}
+                  >
+                    {card.label}
+                  </div>
+                  <div className="text-xs italic" style={{ color: "#8A7A72" }}>
+                    {card.sublabel}
+                  </div>
+                </div>
+              </div>
+            </FadeSection>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ===== SLIDESHOW =====
+function Slideshow({
+  gallery,
+  onClose,
+}: {
+  gallery: GalleryItem[];
+  onClose: () => void;
+}) {
+  const [idx, setIdx] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const validGallery = gallery.filter((g) => g.photoUrl);
+
+  const goNext = useCallback(() => {
+    setIdx((prev) => (prev + 1) % validGallery.length);
+  }, [validGallery.length]);
+
+  const goPrev = useCallback(() => {
+    setIdx((prev) => (prev - 1 + validGallery.length) % validGallery.length);
+  }, [validGallery.length]);
+
+  useEffect(() => {
+    if (playing && validGallery.length > 1) {
+      intervalRef.current = setInterval(goNext, 3000);
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [playing, goNext, validGallery.length]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") goPrev();
+      if (e.key === "ArrowRight") goNext();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose, goNext, goPrev]);
+
+  if (validGallery.length === 0) return null;
+  const current = validGallery[idx];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      data-ocid="slideshow.modal"
+    >
+      <div
+        className="absolute inset-0"
+        style={{ backgroundColor: "rgba(10,5,5,0.94)" }}
+      />
+      {/* Close */}
+      <button
+        type="button"
+        data-ocid="slideshow.close_button"
+        onClick={onClose}
+        className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold transition-all hover:scale-105"
+        style={{ backgroundColor: "rgba(176,122,115,0.9)", color: "white" }}
+        aria-label="Close slideshow"
+      >
+        ×
+      </button>
+      {/* Prev */}
+      <button
+        type="button"
+        data-ocid="slideshow.pagination_prev"
+        onClick={(e) => {
+          e.stopPropagation();
+          goPrev();
+        }}
+        className="absolute left-4 z-20 w-11 h-11 rounded-full flex items-center justify-center text-2xl transition-all hover:scale-105"
+        style={{ backgroundColor: "rgba(176,122,115,0.85)", color: "white" }}
+        aria-label="Previous"
+      >
+        ‹
+      </button>
+      {/* Next */}
+      <button
+        type="button"
+        data-ocid="slideshow.pagination_next"
+        onClick={(e) => {
+          e.stopPropagation();
+          goNext();
+        }}
+        className="absolute right-4 z-20 w-11 h-11 rounded-full flex items-center justify-center text-2xl transition-all hover:scale-105"
+        style={{ backgroundColor: "rgba(176,122,115,0.85)", color: "white" }}
+        aria-label="Next"
+      >
+        ›
+      </button>
+      {/* Play/Pause */}
+      <button
+        type="button"
+        data-ocid="slideshow.toggle"
+        onClick={() => setPlaying((p) => !p)}
+        className="absolute bottom-16 right-4 z-20 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all hover:scale-105"
+        style={{ backgroundColor: "rgba(176,122,115,0.85)", color: "white" }}
+        aria-label={playing ? "Pause" : "Play"}
+      >
+        {playing ? "⏸" : "▶"}
+      </button>
+      {/* Photo */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={current.id}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative z-10 flex flex-col items-center gap-4 px-16 max-w-4xl w-full"
+        >
+          <img
+            src={current.photoUrl}
+            alt={current.label}
+            className="rounded-2xl object-contain"
+            style={{ maxHeight: "75vh", maxWidth: "100%" }}
+          />
+          <span
+            className="px-4 py-1 rounded-full text-sm font-semibold"
+            style={{ backgroundColor: "rgba(176,122,115,0.9)", color: "white" }}
+          >
+            {current.label}
+          </span>
+          <span className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
+            {idx + 1} / {validGallery.length}
+          </span>
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ===== LIGHTBOX =====
 function Lightbox({
   photo,
@@ -1174,6 +1421,10 @@ export default function App() {
   const [lightboxPhoto, setLightboxPhoto] = useState<GalleryItem | null>(null);
   const [showEditPanel, setShowEditPanel] = useState(false);
   const [content, setContent] = useState<AppContent>(loadContent);
+  const [showSlideshowMode, setShowSlideshowMode] = useState(false);
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [pinValue, setPinValue] = useState("");
+  const [pinError, setPinError] = useState(false);
 
   const { actor } = useActor();
 
@@ -1190,6 +1441,7 @@ export default function App() {
 
   const navItems = [
     { id: "home", label: "Home" },
+    { id: "countdown", label: "Milestones" },
     { id: "letters", label: "Love Letters" },
     { id: "memories", label: "Memories Gallery" },
     { id: "story", label: "Story" },
@@ -1223,6 +1475,27 @@ export default function App() {
         if (track) {
           const url = track.audioFile.getDirectURL();
           localStorage.setItem(MUSIC_KEY, url);
+        }
+      } catch {
+        /* ignore */
+      }
+
+      // Load app content from cloud
+      try {
+        const cloudContent = await actor.getAppContent();
+        if (cloudContent) {
+          const parsed = JSON.parse(cloudContent) as Partial<AppContent>;
+          const merged = {
+            ...DEFAULT_CONTENT,
+            ...parsed,
+            letters: parsed.letters ?? DEFAULT_CONTENT.letters,
+          };
+          setContent(merged);
+          try {
+            localStorage.setItem(CONTENT_KEY, JSON.stringify(merged));
+          } catch {
+            /* ignore */
+          }
         }
       } catch {
         /* ignore */
@@ -1397,6 +1670,11 @@ export default function App() {
       localStorage.setItem(CONTENT_KEY, JSON.stringify(updated));
     } catch {
       // ignore
+    }
+    if (actor) {
+      actor.saveAppContent(JSON.stringify(updated)).catch((err) => {
+        console.error("Cloud content save failed:", err);
+      });
     }
   };
 
@@ -1608,6 +1886,9 @@ export default function App() {
         </div>
       </section>
 
+      {/* ===== COUNTDOWN ===== */}
+      <CountdownSection />
+
       {/* ===== LOVE LETTERS ===== */}
       <section id="letters" className="py-20 px-4 max-w-7xl mx-auto">
         <FadeSection className="text-center mb-14">
@@ -1783,6 +2064,22 @@ export default function App() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          <div className="flex justify-end mb-4">
+            <button
+              type="button"
+              data-ocid="memories.slideshow.button"
+              onClick={() => setShowSlideshowMode(true)}
+              className="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
+              style={{
+                backgroundColor: "#B07A73",
+                color: "#FAF6EE",
+                boxShadow: "0 2px 12px rgba(176,122,115,0.25)",
+              }}
+            >
+              ▶ Slideshow
+            </button>
+          </div>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
             {gallery.map((mem, i) => (
@@ -2082,7 +2379,11 @@ export default function App() {
       <button
         type="button"
         data-ocid="edit.open_modal_button"
-        onClick={() => setShowEditPanel(true)}
+        onClick={() => {
+          setPinValue("");
+          setPinError(false);
+          setShowPinDialog(true);
+        }}
         title="Edit app content"
         className="fixed bottom-6 left-6 z-40 w-12 h-12 rounded-full flex items-center justify-center shadow-lg text-xl transition-all hover:scale-105 active:scale-95"
         style={{
@@ -2097,6 +2398,125 @@ export default function App() {
 
       {/* ===== MUSIC PLAYER ===== */}
       <MusicPlayer />
+
+      {/* ===== SLIDESHOW ===== */}
+      <AnimatePresence>
+        {showSlideshowMode && (
+          <Slideshow
+            gallery={gallery}
+            onClose={() => setShowSlideshowMode(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ===== PIN DIALOG ===== */}
+      <AnimatePresence>
+        {showPinDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: "rgba(42,36,32,0.6)" }}
+            data-ocid="pin.dialog"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="rounded-3xl p-8 flex flex-col items-center gap-5 w-full max-w-xs shadow-2xl"
+              style={{
+                backgroundColor: "#FAF6EE",
+                border: "1px solid #D8C9B3",
+              }}
+            >
+              <div className="text-4xl">🔐</div>
+              <h3
+                className="font-display text-xl font-bold"
+                style={{ color: "#2A2420" }}
+              >
+                Enter PIN
+              </h3>
+              <p className="text-sm text-center" style={{ color: "#8A7A72" }}>
+                Enter your 4-digit PIN to edit app content
+              </p>
+              <input
+                type="password"
+                maxLength={4}
+                value={pinValue}
+                data-ocid="pin.input"
+                onChange={(e) => {
+                  setPinValue(e.target.value);
+                  setPinError(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (pinValue === "5802") {
+                      setShowPinDialog(false);
+                      setShowEditPanel(true);
+                    } else {
+                      setPinError(true);
+                      setPinValue("");
+                    }
+                  }
+                }}
+                className="w-full text-center text-2xl tracking-widest px-4 py-3 rounded-xl outline-none"
+                style={{
+                  border: pinError ? "2px solid #C0392B" : "2px solid #D8C9B3",
+                  backgroundColor: "#FFF9F3",
+                  color: "#2A2420",
+                  letterSpacing: "0.5em",
+                }}
+                placeholder="••••"
+                // biome-ignore lint/a11y/noAutofocus: PIN dialog should focus input automatically
+                autoFocus
+              />
+              {pinError && (
+                <p
+                  data-ocid="pin.error_state"
+                  className="text-sm font-semibold"
+                  style={{ color: "#C0392B" }}
+                >
+                  Incorrect PIN. Try again.
+                </p>
+              )}
+              <div className="flex gap-3 w-full">
+                <button
+                  type="button"
+                  data-ocid="pin.confirm_button"
+                  onClick={() => {
+                    if (pinValue === "5802") {
+                      setShowPinDialog(false);
+                      setShowEditPanel(true);
+                    } else {
+                      setPinError(true);
+                      setPinValue("");
+                    }
+                  }}
+                  className="flex-1 py-2.5 rounded-full font-semibold text-sm transition-all hover:opacity-90 active:scale-95"
+                  style={{ backgroundColor: "#B07A73", color: "#FAF6EE" }}
+                >
+                  Confirm
+                </button>
+                <button
+                  type="button"
+                  data-ocid="pin.cancel_button"
+                  onClick={() => {
+                    setShowPinDialog(false);
+                    setPinValue("");
+                    setPinError(false);
+                  }}
+                  className="px-5 py-2.5 rounded-full font-semibold text-sm transition-all hover:opacity-80"
+                  style={{ backgroundColor: "#EEE4D0", color: "#4A3830" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

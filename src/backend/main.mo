@@ -6,11 +6,15 @@ import List "mo:core/List";
 import Text "mo:core/Text";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
+import Iter "mo:core/Iter";
+import Nat "mo:core/Nat";
 
 import Storage "blob-storage/Storage";
 import MixinStorage "blob-storage/Mixin";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
+
+
 
 actor {
   // Initialize the access control system
@@ -57,7 +61,6 @@ actor {
 
   public type UserProfile = {
     name : Text;
-    // Add other fields if needed
   };
 
   // Internal persistent state
@@ -66,6 +69,15 @@ actor {
   let photos = Map.empty<Text, Photo>();
   let music = Map.empty<Text, MusicTrack>();
   let userProfiles = Map.empty<Principal, UserProfile>();
+
+  var nextQuoteId = 1;
+  type LoveQuote = {
+    id : Nat;
+    text : Text;
+  };
+  let loveQuotes = Map.empty<Nat, LoveQuote>();
+
+  var appContent : ?Text = null;
 
   include MixinStorage();
 
@@ -151,5 +163,54 @@ actor {
 
   public query func getMusicTrack(title : Text) : async ?MusicTrack {
     music.get(title);
+  };
+
+  // Love Quotes - OPEN to all callers including anonymous
+  public shared func addLoveQuote(text : Text) : async Nat {
+    let id = nextQuoteId;
+    nextQuoteId += 1;
+    let quote : LoveQuote = {
+      id;
+      text;
+    };
+    loveQuotes.add(id, quote);
+    id;
+  };
+
+  public query func getLoveQuote(id : Nat) : async LoveQuote {
+    switch (loveQuotes.get(id)) {
+      case (null) { Runtime.trap("Quote not found") };
+      case (?quote) { quote };
+    };
+  };
+
+  public query func getAllLoveQuotes() : async [LoveQuote] {
+    loveQuotes.values().toArray();
+  };
+
+  public query func getRandomLoveQuote() : async LoveQuote {
+    if (loveQuotes.isEmpty()) {
+      Runtime.trap("No quotes available");
+    };
+    let quoteIter = loveQuotes.values();
+    let quoteArray = quoteIter.toArray();
+    let index = nextQuoteId % quoteArray.size();
+    if (index < quoteArray.size()) {
+      quoteArray[index];
+    } else {
+      Runtime.trap("Random index out of bounds");
+    };
+  };
+
+  // App Content (Document Storage) - ADMIN ONLY for writes, open for reads
+  public shared ({ caller }) func saveAppContent(jsonText : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can save app content");
+    };
+    appContent := ?jsonText;
+  };
+
+  public query func getAppContent() : async ?Text {
+    appContent;
   };
 };
