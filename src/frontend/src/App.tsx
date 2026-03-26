@@ -348,6 +348,7 @@ type AppContent = {
   quoteAttribution: string;
   gallerySubheading: string;
   lettersSubheading: string;
+  galleryItems?: { id: number; label: string; bg: string }[];
 };
 
 const DEFAULT_CONTENT: AppContent = {
@@ -1428,8 +1429,14 @@ export default function App() {
 
   const { actor } = useActor();
 
+  useEffect(() => {
+    actorRef.current = actor;
+  }, [actor]);
+
   const titleClickCount = useRef(0);
   const titleClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contentRef = useRef<AppContent>(loadContent());
+  const actorRef = useRef<typeof actor>(null);
   const addFileRef = useRef<HTMLInputElement>(null);
   const replaceFileRef = useRef<HTMLInputElement>(null);
   const replaceTargetId = useRef<number | null>(null);
@@ -1491,6 +1498,21 @@ export default function App() {
             letters: parsed.letters ?? DEFAULT_CONTENT.letters,
           };
           setContent(merged);
+          contentRef.current = merged;
+          // Apply gallery metadata from cloud if present
+          if (parsed.galleryItems && parsed.galleryItems.length > 0) {
+            setGallery((prev) => {
+              const updated = prev.map((item) => {
+                const meta = (parsed.galleryItems ?? []).find(
+                  (m) => m.id === item.id,
+                );
+                if (meta) return { ...item, label: meta.label, bg: meta.bg };
+                return item;
+              });
+              saveGallery(updated);
+              return updated;
+            });
+          }
           try {
             localStorage.setItem(CONTENT_KEY, JSON.stringify(merged));
           } catch {
@@ -1524,6 +1546,20 @@ export default function App() {
   const updateGallery = useCallback((items: GalleryItem[]) => {
     setGallery(items);
     saveGallery(items);
+    // Sync gallery metadata to cloud
+    const currentActor = actorRef.current;
+    if (currentActor) {
+      const galleryMeta = items.map(({ id, label, bg }) => ({ id, label, bg }));
+      const updatedContent = {
+        ...contentRef.current,
+        galleryItems: galleryMeta,
+      };
+      currentActor
+        .saveAppContent(JSON.stringify(updatedContent))
+        .catch((err) => {
+          console.error("Cloud gallery sync failed:", err);
+        });
+    }
   }, []);
 
   const handleTitleClick = () => {
@@ -1666,6 +1702,7 @@ export default function App() {
 
   const handleSaveContent = (updated: AppContent) => {
     setContent(updated);
+    contentRef.current = updated;
     try {
       localStorage.setItem(CONTENT_KEY, JSON.stringify(updated));
     } catch {
